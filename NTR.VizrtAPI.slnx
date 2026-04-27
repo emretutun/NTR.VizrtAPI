@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="NTR.API/NTR.API.csproj" />
+  <Project Path="NTR.Application/NTR.Application.csproj" />
+  <Project Path="NTR.Core/NTR.Core.csproj" />
+  <Project Path="NTR.Infrastructure/NTR.Infrastructure.csproj" />
+</Solution>

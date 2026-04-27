@@ -1,0 +1,6 @@
+@NTR.API_HostAddress = http://localhost:5064
+
+GET {{NTR.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
