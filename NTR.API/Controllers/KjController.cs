@@ -158,6 +158,21 @@ namespace NTR.API.Controllers
             var result = _vizrtService.TakeAllRozet(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+        // ─── WHATSAPP ─────────────────────────────────────────────
+
+        [HttpPost("{engineType}/whatsapp/ver")]
+        public IActionResult WhatsappVer(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.SendWhatsapp(engineType);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("{engineType}/whatsapp/al")]
+        public IActionResult WhatsappAl(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.TakeWhatsapp(engineType);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
 
     }
 }

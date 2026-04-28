@@ -1,12 +1,13 @@
-﻿using System;
+﻿using NTR.Core.Entities;
+using NTR.Core.Enums;
+using NTR.Core.Interfaces;
+using NTR.Infrastructure.Vizrt;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NTR.Core.Entities;
-using NTR.Core.Enums;
-using NTR.Core.Interfaces;
-using NTR.Infrastructure.Vizrt;
+using static System.Net.WebRequestMethods;
 
 namespace NTR.Application.Services
 {
@@ -27,15 +28,20 @@ namespace NTR.Application.Services
         private readonly Dictionary<VizrtEngineType, bool> _canliOnAir;
         private readonly Dictionary<VizrtEngineType, bool> _canliYerOnAir;
         private readonly Dictionary<VizrtEngineType, RozetType?> _aktifRozet;
+        private readonly Dictionary<VizrtEngineType, bool> _whatsappOnAir;
+        private readonly LogService _log;
 
 
-        public VizrtService(VizrtSettings vizrtSettings)
+        public VizrtService(VizrtSettings vizrtSettings, LogService logService)
         {
+
             _settings = vizrtSettings;
             _telefonIsimOnAir = InitBoolDict();
             _muhabirKameraOnAir = InitBoolDict();
             _canliOnAir = InitBoolDict();
             _canliYerOnAir = InitBoolDict();
+            _whatsappOnAir = InitBoolDict();
+            _log = logService;
             _aktifRozet = new Dictionary<VizrtEngineType, RozetType?>
             {
                 { VizrtEngineType.Reji,    null },
@@ -89,6 +95,12 @@ namespace NTR.Application.Services
         {
             var engine = GetEngine(engineType);
             bool result = engine.Connect(ip);
+
+            if (result)
+                _log.Log("Engine", $"{engineType} bağlantısı kuruldu.", $"IP: {ip}");
+            else
+                _log.Error("Engine", $"{engineType} bağlantısı kurulamadı.", $"IP: {ip}");
+
             return result
                 ? CommandResult.Ok($"{engineType} bağlantısı kuruldu. IP: {ip}")
                 : CommandResult.Fail($"{engineType} bağlantısı kurulamadı. IP: {ip}");
@@ -98,6 +110,9 @@ namespace NTR.Application.Services
         {
             var engine = GetEngine(engineType);
             bool result = engine.Disconnect();
+
+            _log.Log("Engine", $"{engineType} bağlantısı kesildi.");
+
             return result
                 ? CommandResult.Ok($"{engineType} bağlantısı kesildi.")
                 : CommandResult.Fail($"{engineType} bağlantısı kesilemedi.");
@@ -119,10 +134,14 @@ namespace NTR.Application.Services
         {
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
+            {
+                _log.Warning("Scene", $"{engineType} bağlı değil.", $"Scene: {scenePath}");
                 return CommandResult.Fail($"{engineType} bağlı değil.");
+            }
 
             _kjScenePath[engineType] = scenePath;
             engine.LoadScene(scenePath);
+            _log.Log("Scene", $"Scene yüklendi.", $"{engineType} | {scenePath}");
             return CommandResult.Ok($"Scene yüklendi: {scenePath}");
         }
 
@@ -130,6 +149,8 @@ namespace NTR.Application.Services
 
         public CommandResult SendKj(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "", RozetType? rozet = null)
         {
+            _log.Log("KJ", $"{kjType} KJ yayına verildi.", $"{engineType} | {text1}" + (string.IsNullOrEmpty(text2) ? "" : $" | {text2}") + (rozet.HasValue ? $" | Rozet: {rozet}" : ""));
+
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
@@ -339,11 +360,19 @@ namespace NTR.Application.Services
 
             string scene = _kjScenePath[engineType];
 
-            if (_kjTekOnAir[engineType]) { engine.Play(scene, "KJ_TEK$OUT"); _kjTekOnAir[engineType] = false; }
-            if (_kjCiftOnAir[engineType]) { engine.Play(scene, "KJ_CIFT$OUT"); _kjCiftOnAir[engineType] = false; }
-            if (_kjUzunOnAir[engineType]) { engine.Play(scene, "KJ_UZUN$OUT"); _kjUzunOnAir[engineType] = false; }
+            if (_kjTekOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_TEK$OUT"); _kjTekOnAir[engineType] = false; }
+            if (_kjCiftOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT"); _kjCiftOnAir[engineType] = false; }
+            if (_kjUzunOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT"); _kjUzunOnAir[engineType] = false; }
+
+            // Rozeti de kapat
+            if (_aktifRozet[engineType].HasValue)
+            {
+                engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                _aktifRozet[engineType] = null;
+            }
 
             _nextTextAnimIndex[engineType] = 1;
+            _log.Log("KJ", "KJ yayından alındı.", engineType.ToString());
             return CommandResult.Ok("KJ yayından alındı.");
         }
 
@@ -355,19 +384,90 @@ namespace NTR.Application.Services
 
             string scene = _kjScenePath[engineType];
 
-            TakeKj(engineType);
-            TakeSosyalMedya(engineType);
-            TakeYer(engineType);
-            TakeIsimlik(engineType);
+            // KJ bantları
+            if (_kjTekOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_TEK$OUT"); _kjTekOnAir[engineType] = false; }
+            if (_kjCiftOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT"); _kjCiftOnAir[engineType] = false; }
+            if (_kjUzunOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT"); _kjUzunOnAir[engineType] = false; }
 
+            // Rozetler
+            if (_aktifRozet[engineType].HasValue)
+            {
+                engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                _aktifRozet[engineType] = null;
+            }
+
+            // Sosyal medya ve Whatsapp
+            if (_sosyalMedyaOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT");
+                _sosyalMedyaOnAir[engineType] = false;
+            }
+            if (_whatsappOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$OUT");
+                _whatsappOnAir[engineType] = false;
+            }
+
+            // Yer
+            if (_yerOnAir[engineType])
+            {
+                engine.Play(scene, "YER_KOSE_OUT");
+                _yerOnAir[engineType] = false;
+            }
+
+            // İsimlik
+            if (_isimlikOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$ISIMLIK$OUT");
+                _isimlikOnAir[engineType] = false;
+            }
+
+            // Telefon İsimlik
+            if (_telefonIsimOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$TELEFON$OUT");
+                engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT");
+                _telefonIsimOnAir[engineType] = false;
+            }
+
+            // Muhabir Kamera
+            if (_muhabirKameraOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$ISIMLIK_3$OUT");
+                _muhabirKameraOnAir[engineType] = false;
+            }
+
+            // Canlı
+            if (_canliOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$CANLI_OUT");
+                _canliOnAir[engineType] = false;
+            }
+
+            // Canlı Yer
+            if (_canliYerOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT");
+                _canliYerOnAir[engineType] = false;
+            }
+
+            // NextTextAnimIndex sıfırla
+            _nextTextAnimIndex[engineType] = 1;
+
+            // Stage sıfırla
+            Thread.Sleep(2000);
             engine.StageToStart("RENDERER*MAIN_LAYER");
-            return CommandResult.Ok("Tümü yayından alındı.");
+            _log.Log("KJ", "Tüm grafikler yayından alındı.", engineType.ToString());
+
+            return CommandResult.Ok("Tüm grafikler yayından alındı.");
+
         }
 
         // ─── YER ─────────────────────────────────────────────────
 
         public CommandResult SendYer(VizrtEngineType engineType, string text)
         {
+            _log.Log("Yer", $"Yer KJ yayına verildi.", $"{engineType} | {text}");
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
@@ -422,11 +522,20 @@ namespace NTR.Application.Services
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
+            string scene = _kjScenePath[engineType];
+
             if (_sosyalMedyaOnAir[engineType])
             {
-                engine.Play(_kjScenePath[engineType], "SOSYAL_MEDYA_DONUSUMLU$OUT");
+                engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT");
                 _sosyalMedyaOnAir[engineType] = false;
             }
+
+            if (_whatsappOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$OUT");
+                _whatsappOnAir[engineType] = false;
+            }
+
             return CommandResult.Ok("Sosyal medya yayından alındı.");
         }
 
@@ -442,6 +551,7 @@ namespace NTR.Application.Services
             engine.SetObjectText(scene, "ISIMLIK$isim", isim);
             engine.Play(scene, "ISIMLIK$IN");
             _isimlikOnAir[engineType] = true;
+            _log.Log("İsimlik", "İsimlik yayına verildi.", $"{engineType} | {isim}");
             return CommandResult.Ok("İsimlik yayına verildi.");
         }
 
@@ -463,6 +573,7 @@ namespace NTR.Application.Services
 
         public CommandResult SendRawCommand(VizrtEngineType engineType, string command)
         {
+            _log.Log("Raw", $"Ham komut gönderildi.", $"{engineType} | {command}");
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
@@ -534,6 +645,7 @@ namespace NTR.Application.Services
 
         public CommandResult SendMuhabirKamera(VizrtEngineType engineType, string muhabir, string kameraman)
         {
+            _log.Log("MuhabirKamera", "Muhabir/Kamera yayına verildi.", $"{engineType} | Muhabir: {muhabir} | Kamera: {kameraman}");
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
@@ -694,6 +806,7 @@ namespace NTR.Application.Services
 
         public CommandResult SendRozet(VizrtEngineType engineType, RozetType rozetType)
         {
+            _log.Log("Rozet", $"{rozetType} rozeti yayına verildi.", engineType.ToString());
             var engine = GetEngine(engineType);
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
@@ -759,6 +872,41 @@ namespace NTR.Application.Services
 
             return CommandResult.Ok("Tüm rozetler yayından alındı.");
         }
+        // ─── WHATSAPP ─────────────────────────────────────────────
 
+        public CommandResult SendWhatsapp(VizrtEngineType engineType)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            string scene = _kjScenePath[engineType];
+
+            // Sosyal medya açıksa kapat
+            if (_sosyalMedyaOnAir[engineType])
+            {
+                engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT");
+                _sosyalMedyaOnAir[engineType] = false;
+                Thread.Sleep(500);
+            }
+
+            engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$IN");
+            _whatsappOnAir[engineType] = true;
+            return CommandResult.Ok("Whatsapp yayına verildi.");
+        }
+
+        public CommandResult TakeWhatsapp(VizrtEngineType engineType)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            if (_whatsappOnAir[engineType])
+            {
+                engine.Play(_kjScenePath[engineType], "KJ_TUM$TELEFON_WHATSAPP$OUT");
+                _whatsappOnAir[engineType] = false;
+            }
+            return CommandResult.Ok("Whatsapp yayından alındı.");
+        }
     }
 }

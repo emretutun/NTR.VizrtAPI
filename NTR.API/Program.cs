@@ -1,3 +1,4 @@
+using NTR.API.Middleware;
 using NTR.Application.Extensions;
 using NTR.Core.Entities;
 
@@ -28,6 +29,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// API Key Middleware
+app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
