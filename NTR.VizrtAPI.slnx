@@ -3,4 +3,5 @@
   <Project Path="NTR.Application/NTR.Application.csproj" />
   <Project Path="NTR.Core/NTR.Core.csproj" />
   <Project Path="NTR.Infrastructure/NTR.Infrastructure.csproj" />
+  <Project Path="NTR.RejiClient/NTR.RejiClient.csproj" Id="69da26eb-c5a6-4f81-bbaf-d39c8114fe04" />
 </Solution>
