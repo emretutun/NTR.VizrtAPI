@@ -26,4 +26,13 @@ namespace NTR.Core.Enums
         Ciftli,
         Uzun
     }
+    public enum RozetType
+    {
+        AzSonra = 0,
+        AzSonraDsf = 1,
+        AzSonraDsf2 = 2,
+        SonDakika = 3,
+        OzelHaber = 4,
+        WhatsappIhbar = 5
+    }
 }

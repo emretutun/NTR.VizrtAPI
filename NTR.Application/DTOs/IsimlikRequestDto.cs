@@ -10,5 +10,6 @@ namespace NTR.Application.DTOs
     {
         public string Isim { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
+        public bool TelefonMu { get; set; } = false;
     }
 }

@@ -17,8 +17,7 @@ namespace NTR.Core.Interfaces
         List<VizrtEngine> GetAllEngineStatus();
 
         // KJ
-        CommandResult SendKj(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "");
-        CommandResult TakeKj(VizrtEngineType engineType);
+        CommandResult SendKj(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "", RozetType? rozet = null); CommandResult TakeKj(VizrtEngineType engineType);
         CommandResult TakeAll(VizrtEngineType engineType);
 
         // Yer
@@ -38,5 +37,30 @@ namespace NTR.Core.Interfaces
 
         // Scene
         CommandResult LoadScene(VizrtEngineType engineType, string scenePath);
+
+        // Telefon İsimlik
+        CommandResult SendTelefonIsimlik(VizrtEngineType engineType, string isim, string title, bool telefonMu);
+        CommandResult TakeTelefonIsimlik(VizrtEngineType engineType);
+
+        // Muhabir Kamera
+        CommandResult SendMuhabirKamera(VizrtEngineType engineType, string muhabir, string kameraman);
+        CommandResult TakeMuhabirKamera(VizrtEngineType engineType);
+
+        // Canlı
+        CommandResult SendCanli(VizrtEngineType engineType);
+        CommandResult TakeCanli(VizrtEngineType engineType);
+
+        // Canlı Yer
+        CommandResult SendCanliYer(VizrtEngineType engineType, string text);
+        CommandResult TakeCanliYer(VizrtEngineType engineType);
+
+        // Rozetler
+        CommandResult SendRozet(VizrtEngineType engineType, RozetType rozetType);
+        CommandResult TakeRozet(VizrtEngineType engineType, RozetType rozetType);
+        CommandResult TakeAllRozet(VizrtEngineType engineType);
+
+        // Whatsapp
+        CommandResult SendWhatsapp(VizrtEngineType engineType);
+        CommandResult TakeWhatsapp(VizrtEngineType engineType);
     }
 }

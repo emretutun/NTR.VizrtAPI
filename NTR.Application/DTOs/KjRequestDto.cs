@@ -13,5 +13,6 @@ namespace NTR.Application.DTOs
         public KjType Type { get; set; } = KjType.Tekli;
         public string Text1 { get; set; } = string.Empty;
         public string Text2 { get; set; } = string.Empty;
+        public RozetType? Rozet { get; set; } = null;
     }
 }
