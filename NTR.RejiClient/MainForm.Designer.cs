@@ -28,12 +28,523 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "MainForm";
+            panel1 = new Panel();
+            btnBaglan = new Button();
+            txtIpAdresi = new TextBox();
+            label1 = new Label();
+            splitContainer1 = new SplitContainer();
+            splitContainer2 = new SplitContainer();
+            dgvHaberler = new DataGridView();
+            dgvKjListesi = new DataGridView();
+            panel2 = new Panel();
+            lblSahneTipi = new Label();
+            txtKjMetin1 = new Label();
+            txtKjMetin2 = new Label();
+            btnKaydet = new Button();
+            btnSil = new Button();
+            cbxAcilDurum = new CheckBox();
+            groupBox1 = new GroupBox();
+            groupBox2 = new GroupBox();
+            tabControl1 = new TabControl();
+            tabKJ = new TabPage();
+            tabSosyalMedya = new TabPage();
+            rbHaberKJ = new RadioButton();
+            rbAzSonra = new RadioButton();
+            rbAzSonraDSF = new RadioButton();
+            rbAzSonraDSFv2 = new RadioButton();
+            rbSonDakika = new RadioButton();
+            rbOzelHaber = new RadioButton();
+            rbWhatsappIhbar = new RadioButton();
+            btnTekliKJ = new Button();
+            btnCiftliKJ = new Button();
+            btnUzunKJ = new Button();
+            btnKJAl = new Button();
+            btnYerVer = new Button();
+            btnYerAl = new Button();
+            btnMuhabirKameramanAl = new Button();
+            btnMuhabirKameramanVer = new Button();
+            panel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
+            splitContainer1.Panel1.SuspendLayout();
+            splitContainer1.Panel2.SuspendLayout();
+            splitContainer1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
+            splitContainer2.Panel1.SuspendLayout();
+            splitContainer2.Panel2.SuspendLayout();
+            splitContainer2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvHaberler).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dgvKjListesi).BeginInit();
+            panel2.SuspendLayout();
+            groupBox2.SuspendLayout();
+            tabControl1.SuspendLayout();
+            tabKJ.SuspendLayout();
+            SuspendLayout();
+            // 
+            // panel1
+            // 
+            panel1.Controls.Add(label1);
+            panel1.Controls.Add(txtIpAdresi);
+            panel1.Controls.Add(btnBaglan);
+            panel1.Dock = DockStyle.Top;
+            panel1.Location = new Point(0, 0);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(1825, 85);
+            panel1.TabIndex = 0;
+            // 
+            // btnBaglan
+            // 
+            btnBaglan.FlatStyle = FlatStyle.Flat;
+            btnBaglan.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnBaglan.Location = new Point(23, 41);
+            btnBaglan.Name = "btnBaglan";
+            btnBaglan.Size = new Size(177, 31);
+            btnBaglan.TabIndex = 0;
+            btnBaglan.Text = "BAĞLAN";
+            btnBaglan.UseVisualStyleBackColor = true;
+            // 
+            // txtIpAdresi
+            // 
+            txtIpAdresi.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            txtIpAdresi.Location = new Point(100, 12);
+            txtIpAdresi.Name = "txtIpAdresi";
+            txtIpAdresi.Size = new Size(100, 25);
+            txtIpAdresi.TabIndex = 1;
+            txtIpAdresi.Text = "127.0.0.1";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            label1.ForeColor = Color.Black;
+            label1.Location = new Point(23, 15);
+            label1.Name = "label1";
+            label1.Size = new Size(73, 19);
+            label1.TabIndex = 2;
+            label1.Text = "IP Adresi:";
+            // 
+            // splitContainer1
+            // 
+            splitContainer1.Dock = DockStyle.Fill;
+            splitContainer1.Location = new Point(0, 85);
+            splitContainer1.Name = "splitContainer1";
+            // 
+            // splitContainer1.Panel1
+            // 
+            splitContainer1.Panel1.Controls.Add(dgvHaberler);
+            // 
+            // splitContainer1.Panel2
+            // 
+            splitContainer1.Panel2.Controls.Add(splitContainer2);
+            splitContainer1.Panel2.Paint += splitContainer1_Panel2_Paint;
+            splitContainer1.Size = new Size(1825, 728);
+            splitContainer1.SplitterDistance = 295;
+            splitContainer1.TabIndex = 1;
+            // 
+            // splitContainer2
+            // 
+            splitContainer2.Dock = DockStyle.Fill;
+            splitContainer2.Location = new Point(0, 0);
+            splitContainer2.Name = "splitContainer2";
+            splitContainer2.Orientation = Orientation.Horizontal;
+            // 
+            // splitContainer2.Panel1
+            // 
+            splitContainer2.Panel1.Controls.Add(dgvKjListesi);
+            // 
+            // splitContainer2.Panel2
+            // 
+            splitContainer2.Panel2.Controls.Add(groupBox2);
+            splitContainer2.Panel2.Controls.Add(groupBox1);
+            splitContainer2.Panel2.Controls.Add(panel2);
+            splitContainer2.Size = new Size(1526, 728);
+            splitContainer2.SplitterDistance = 462;
+            splitContainer2.TabIndex = 0;
+            // 
+            // dgvHaberler
+            // 
+            dgvHaberler.AllowUserToAddRows = false;
+            dgvHaberler.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvHaberler.Dock = DockStyle.Fill;
+            dgvHaberler.Location = new Point(0, 0);
+            dgvHaberler.Name = "dgvHaberler";
+            dgvHaberler.ReadOnly = true;
+            dgvHaberler.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvHaberler.Size = new Size(295, 728);
+            dgvHaberler.TabIndex = 0;
+            // 
+            // dgvKjListesi
+            // 
+            dgvKjListesi.AllowUserToAddRows = false;
+            dgvKjListesi.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvKjListesi.Dock = DockStyle.Fill;
+            dgvKjListesi.Location = new Point(0, 0);
+            dgvKjListesi.Name = "dgvKjListesi";
+            dgvKjListesi.ReadOnly = true;
+            dgvKjListesi.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvKjListesi.Size = new Size(1526, 462);
+            dgvKjListesi.TabIndex = 0;
+            // 
+            // panel2
+            // 
+            panel2.Controls.Add(cbxAcilDurum);
+            panel2.Controls.Add(btnSil);
+            panel2.Controls.Add(btnKaydet);
+            panel2.Controls.Add(txtKjMetin2);
+            panel2.Controls.Add(txtKjMetin1);
+            panel2.Controls.Add(lblSahneTipi);
+            panel2.Dock = DockStyle.Left;
+            panel2.Location = new Point(0, 0);
+            panel2.Name = "panel2";
+            panel2.Size = new Size(501, 262);
+            panel2.TabIndex = 0;
+            // 
+            // lblSahneTipi
+            // 
+            lblSahneTipi.AutoSize = true;
+            lblSahneTipi.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblSahneTipi.Location = new Point(31, 35);
+            lblSahneTipi.Name = "lblSahneTipi";
+            lblSahneTipi.Size = new Size(74, 15);
+            lblSahneTipi.TabIndex = 0;
+            lblSahneTipi.Text = "SAHNE TİPİ:";
+            // 
+            // txtKjMetin1
+            // 
+            txtKjMetin1.AutoSize = true;
+            txtKjMetin1.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            txtKjMetin1.Location = new Point(31, 73);
+            txtKjMetin1.Name = "txtKjMetin1";
+            txtKjMetin1.Size = new Size(40, 15);
+            txtKjMetin1.TabIndex = 1;
+            txtKjMetin1.Text = "Metin";
+            // 
+            // txtKjMetin2
+            // 
+            txtKjMetin2.AutoSize = true;
+            txtKjMetin2.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            txtKjMetin2.Location = new Point(31, 112);
+            txtKjMetin2.Name = "txtKjMetin2";
+            txtKjMetin2.Size = new Size(50, 15);
+            txtKjMetin2.TabIndex = 2;
+            txtKjMetin2.Text = "Metin 2";
+            // 
+            // btnKaydet
+            // 
+            btnKaydet.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnKaydet.Location = new Point(257, 35);
+            btnKaydet.Name = "btnKaydet";
+            btnKaydet.Size = new Size(75, 23);
+            btnKaydet.TabIndex = 3;
+            btnKaydet.Text = "KAYDET";
+            btnKaydet.UseVisualStyleBackColor = true;
+            // 
+            // btnSil
+            // 
+            btnSil.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnSil.Location = new Point(257, 80);
+            btnSil.Name = "btnSil";
+            btnSil.Size = new Size(75, 23);
+            btnSil.TabIndex = 4;
+            btnSil.Text = "SİL";
+            btnSil.UseVisualStyleBackColor = true;
+            // 
+            // cbxAcilDurum
+            // 
+            cbxAcilDurum.AutoSize = true;
+            cbxAcilDurum.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
+            cbxAcilDurum.Location = new Point(31, 202);
+            cbxAcilDurum.Name = "cbxAcilDurum";
+            cbxAcilDurum.Size = new Size(112, 19);
+            cbxAcilDurum.TabIndex = 5;
+            cbxAcilDurum.Text = "ACİL DURUM KJ";
+            cbxAcilDurum.UseVisualStyleBackColor = true;
+            // 
+            // groupBox1
+            // 
+            groupBox1.Dock = DockStyle.Right;
+            groupBox1.Location = new Point(1206, 0);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(320, 262);
+            groupBox1.TabIndex = 1;
+            groupBox1.TabStop = false;
+            // 
+            // groupBox2
+            // 
+            groupBox2.Controls.Add(tabControl1);
+            groupBox2.Dock = DockStyle.Fill;
+            groupBox2.Location = new Point(501, 0);
+            groupBox2.Name = "groupBox2";
+            groupBox2.Size = new Size(705, 262);
+            groupBox2.TabIndex = 2;
+            groupBox2.TabStop = false;
+            // 
+            // tabControl1
+            // 
+            tabControl1.Controls.Add(tabKJ);
+            tabControl1.Controls.Add(tabSosyalMedya);
+            tabControl1.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            tabControl1.Location = new Point(0, 10);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(636, 246);
+            tabControl1.TabIndex = 0;
+            // 
+            // tabKJ
+            // 
+            tabKJ.BackColor = Color.Gray;
+            tabKJ.Controls.Add(btnMuhabirKameramanVer);
+            tabKJ.Controls.Add(btnMuhabirKameramanAl);
+            tabKJ.Controls.Add(btnYerAl);
+            tabKJ.Controls.Add(btnYerVer);
+            tabKJ.Controls.Add(btnKJAl);
+            tabKJ.Controls.Add(btnUzunKJ);
+            tabKJ.Controls.Add(btnCiftliKJ);
+            tabKJ.Controls.Add(btnTekliKJ);
+            tabKJ.Controls.Add(rbWhatsappIhbar);
+            tabKJ.Controls.Add(rbOzelHaber);
+            tabKJ.Controls.Add(rbSonDakika);
+            tabKJ.Controls.Add(rbAzSonraDSFv2);
+            tabKJ.Controls.Add(rbAzSonraDSF);
+            tabKJ.Controls.Add(rbAzSonra);
+            tabKJ.Controls.Add(rbHaberKJ);
+            tabKJ.Font = new Font("Segoe UI Black", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            tabKJ.Location = new Point(4, 26);
+            tabKJ.Name = "tabKJ";
+            tabKJ.Padding = new Padding(3);
+            tabKJ.Size = new Size(628, 216);
+            tabKJ.TabIndex = 0;
+            tabKJ.Text = "KJ";
+            // 
+            // tabSosyalMedya
+            // 
+            tabSosyalMedya.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            tabSosyalMedya.Location = new Point(4, 26);
+            tabSosyalMedya.Name = "tabSosyalMedya";
+            tabSosyalMedya.Padding = new Padding(3);
+            tabSosyalMedya.Size = new Size(480, 210);
+            tabSosyalMedya.TabIndex = 1;
+            tabSosyalMedya.Text = "Sosyal Medya";
+            tabSosyalMedya.UseVisualStyleBackColor = true;
+            // 
+            // rbHaberKJ
+            // 
+            rbHaberKJ.AutoSize = true;
+            rbHaberKJ.Checked = true;
+            rbHaberKJ.Location = new Point(28, 3);
+            rbHaberKJ.Name = "rbHaberKJ";
+            rbHaberKJ.Size = new Size(94, 24);
+            rbHaberKJ.TabIndex = 0;
+            rbHaberKJ.TabStop = true;
+            rbHaberKJ.Text = "Haber KJ";
+            rbHaberKJ.UseVisualStyleBackColor = true;
+            // 
+            // rbAzSonra
+            // 
+            rbAzSonra.AutoSize = true;
+            rbAzSonra.Location = new Point(28, 31);
+            rbAzSonra.Name = "rbAzSonra";
+            rbAzSonra.Size = new Size(93, 24);
+            rbAzSonra.TabIndex = 1;
+            rbAzSonra.Text = "Az Sonra";
+            rbAzSonra.UseVisualStyleBackColor = true;
+            // 
+            // rbAzSonraDSF
+            // 
+            rbAzSonraDSF.AutoSize = true;
+            rbAzSonraDSF.Location = new Point(28, 60);
+            rbAzSonraDSF.Name = "rbAzSonraDSF";
+            rbAzSonraDSF.Size = new Size(125, 24);
+            rbAzSonraDSF.TabIndex = 2;
+            rbAzSonraDSF.Text = "Az Sonra DSF";
+            rbAzSonraDSF.UseVisualStyleBackColor = true;
+            // 
+            // rbAzSonraDSFv2
+            // 
+            rbAzSonraDSFv2.AutoSize = true;
+            rbAzSonraDSFv2.Location = new Point(28, 90);
+            rbAzSonraDSFv2.Name = "rbAzSonraDSFv2";
+            rbAzSonraDSFv2.Size = new Size(149, 24);
+            rbAzSonraDSFv2.TabIndex = 3;
+            rbAzSonraDSFv2.Text = "Az Sonra DSF V2";
+            rbAzSonraDSFv2.UseVisualStyleBackColor = true;
+            // 
+            // rbSonDakika
+            // 
+            rbSonDakika.AutoSize = true;
+            rbSonDakika.Location = new Point(28, 120);
+            rbSonDakika.Name = "rbSonDakika";
+            rbSonDakika.Size = new Size(109, 24);
+            rbSonDakika.TabIndex = 4;
+            rbSonDakika.Text = "Son Dakika";
+            rbSonDakika.UseVisualStyleBackColor = true;
+            // 
+            // rbOzelHaber
+            // 
+            rbOzelHaber.AutoSize = true;
+            rbOzelHaber.Location = new Point(28, 150);
+            rbOzelHaber.Name = "rbOzelHaber";
+            rbOzelHaber.Size = new Size(108, 24);
+            rbOzelHaber.TabIndex = 5;
+            rbOzelHaber.Text = "Özel Haber";
+            rbOzelHaber.UseVisualStyleBackColor = true;
+            // 
+            // rbWhatsappIhbar
+            // 
+            rbWhatsappIhbar.AutoSize = true;
+            rbWhatsappIhbar.Location = new Point(28, 180);
+            rbWhatsappIhbar.Name = "rbWhatsappIhbar";
+            rbWhatsappIhbar.Size = new Size(144, 24);
+            rbWhatsappIhbar.TabIndex = 6;
+            rbWhatsappIhbar.Text = "Whatsapp İhbar";
+            rbWhatsappIhbar.UseVisualStyleBackColor = true;
+            // 
+            // btnTekliKJ
+            // 
+            btnTekliKJ.BackColor = Color.Lime;
+            btnTekliKJ.Font = new Font("Ebrima", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnTekliKJ.Location = new Point(246, 6);
+            btnTekliKJ.Name = "btnTekliKJ";
+            btnTekliKJ.Size = new Size(171, 46);
+            btnTekliKJ.TabIndex = 9;
+            btnTekliKJ.Text = "TEK SATIR KJ VER";
+            btnTekliKJ.UseVisualStyleBackColor = false;
+            // 
+            // btnCiftliKJ
+            // 
+            btnCiftliKJ.BackColor = Color.Lime;
+            btnCiftliKJ.Font = new Font("Ebrima", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnCiftliKJ.Location = new Point(246, 58);
+            btnCiftliKJ.Name = "btnCiftliKJ";
+            btnCiftliKJ.Size = new Size(171, 46);
+            btnCiftliKJ.TabIndex = 10;
+            btnCiftliKJ.Text = "ÇİFT SATIR KJ VER";
+            btnCiftliKJ.UseVisualStyleBackColor = false;
+            // 
+            // btnUzunKJ
+            // 
+            btnUzunKJ.BackColor = Color.Lime;
+            btnUzunKJ.Font = new Font("Ebrima", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnUzunKJ.Location = new Point(246, 108);
+            btnUzunKJ.Name = "btnUzunKJ";
+            btnUzunKJ.Size = new Size(171, 46);
+            btnUzunKJ.TabIndex = 11;
+            btnUzunKJ.Text = "UZUN SATIR KJ VER";
+            btnUzunKJ.UseVisualStyleBackColor = false;
+            // 
+            // btnKJAl
+            // 
+            btnKJAl.Location = new Point(446, 34);
+            btnKJAl.Name = "btnKJAl";
+            btnKJAl.Size = new Size(86, 41);
+            btnKJAl.TabIndex = 12;
+            btnKJAl.Text = "AL";
+            btnKJAl.UseVisualStyleBackColor = true;
+            // 
+            // btnYerVer
+            // 
+            btnYerVer.BackColor = Color.Lime;
+            btnYerVer.Location = new Point(219, 173);
+            btnYerVer.Name = "btnYerVer";
+            btnYerVer.Size = new Size(86, 30);
+            btnYerVer.TabIndex = 13;
+            btnYerVer.Text = "YER VER";
+            btnYerVer.UseVisualStyleBackColor = false;
+            // 
+            // btnYerAl
+            // 
+            btnYerAl.Location = new Point(313, 174);
+            btnYerAl.Name = "btnYerAl";
+            btnYerAl.Size = new Size(67, 30);
+            btnYerAl.TabIndex = 14;
+            btnYerAl.Text = "AL";
+            btnYerAl.UseVisualStyleBackColor = true;
+            // 
+            // btnMuhabirKameramanAl
+            // 
+            btnMuhabirKameramanAl.Location = new Point(490, 174);
+            btnMuhabirKameramanAl.Name = "btnMuhabirKameramanAl";
+            btnMuhabirKameramanAl.Size = new Size(74, 30);
+            btnMuhabirKameramanAl.TabIndex = 15;
+            btnMuhabirKameramanAl.Text = "AL";
+            btnMuhabirKameramanAl.UseVisualStyleBackColor = true;
+            // 
+            // btnMuhabirKameramanVer
+            // 
+            btnMuhabirKameramanVer.Location = new Point(446, 107);
+            btnMuhabirKameramanVer.Name = "btnMuhabirKameramanVer";
+            btnMuhabirKameramanVer.Size = new Size(163, 66);
+            btnMuhabirKameramanVer.TabIndex = 16;
+            btnMuhabirKameramanVer.Text = "MUHABİR KAMERAMAN VER";
+            btnMuhabirKameramanVer.UseVisualStyleBackColor = false;
+            // 
+            // MainForm
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = SystemColors.Control;
+            ClientSize = new Size(1825, 813);
+            Controls.Add(splitContainer1);
+            Controls.Add(panel1);
+            ForeColor = SystemColors.ControlText;
+            Name = "MainForm";
+            Text = "MainForm";
+            panel1.ResumeLayout(false);
+            panel1.PerformLayout();
+            splitContainer1.Panel1.ResumeLayout(false);
+            splitContainer1.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
+            splitContainer1.ResumeLayout(false);
+            splitContainer2.Panel1.ResumeLayout(false);
+            splitContainer2.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer2).EndInit();
+            splitContainer2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dgvHaberler).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgvKjListesi).EndInit();
+            panel2.ResumeLayout(false);
+            panel2.PerformLayout();
+            groupBox2.ResumeLayout(false);
+            tabControl1.ResumeLayout(false);
+            tabKJ.ResumeLayout(false);
+            tabKJ.PerformLayout();
+            ResumeLayout(false);
         }
 
         #endregion
+
+        private Panel panel1;
+        private Label label1;
+        private TextBox txtIpAdresi;
+        private Button btnBaglan;
+        private SplitContainer splitContainer1;
+        private DataGridView dgvHaberler;
+        private SplitContainer splitContainer2;
+        private DataGridView dgvKjListesi;
+        private Panel panel2;
+        private Button btnSil;
+        private Button btnKaydet;
+        private Label txtKjMetin2;
+        private Label txtKjMetin1;
+        private Label lblSahneTipi;
+        private CheckBox cbxAcilDurum;
+        private GroupBox groupBox1;
+        private GroupBox groupBox2;
+        private TabControl tabControl1;
+        private TabPage tabKJ;
+        private TabPage tabSosyalMedya;
+        private RadioButton rbWhatsappIhbar;
+        private RadioButton rbOzelHaber;
+        private RadioButton rbSonDakika;
+        private RadioButton rbAzSonraDSFv2;
+        private RadioButton rbAzSonraDSF;
+        private RadioButton rbAzSonra;
+        private RadioButton rbHaberKJ;
+        private Button btnUzunKJ;
+        private Button btnCiftliKJ;
+        private Button btnTekliKJ;
+        private Button btnKJAl;
+        private Button btnMuhabirKameramanVer;
+        private Button btnMuhabirKameramanAl;
+        private Button btnYerAl;
+        private Button btnYerVer;
     }
 }
