@@ -14,6 +14,8 @@ namespace NTR.RejiClient.Services
         public string EngineType { get; set; } = "Reji";
         public string LastIp { get; set; } = "127.0.0.1";
         public int LastPort { get; set; } = 6100;
+        public string ScenePath { get; set; } = "SHOW_TV_2025/REJI/YENI_SAYFA/KJ/KJ_TUM_V9";
+
 
         private static readonly string ConfigPath = Path.Combine(
             Application.StartupPath, "config.json");
