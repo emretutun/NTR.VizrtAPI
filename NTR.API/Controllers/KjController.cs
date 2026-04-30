@@ -192,6 +192,30 @@ namespace NTR.API.Controllers
             var result = _vizrtService.TakeRoll(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+        // ─── KELEBEK ─────────────────────────────────────────────
+
+        [HttpPost("{engineType}/kelebek/sahne")]
+        public IActionResult KelebekSahneYukle(VizrtEngineType engineType, [FromBody] KelebekSahneDto dto)
+        {
+            var result = _vizrtService.KelebekSahneYukle(engineType, dto.SahneYolu);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("{engineType}/kelebek/isim")]
+        public IActionResult KelebekIsimGonder(VizrtEngineType engineType, [FromBody] KelebekIsimDto dto)
+        {
+            var result = _vizrtService.KelebekIsimGonder(engineType, dto.Index, dto.Isim, dto.Title);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("{engineType}/kelebek/kapat")]
+        public IActionResult KelebekKapat(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.KelebekKapat(engineType);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+
 
     }
 }

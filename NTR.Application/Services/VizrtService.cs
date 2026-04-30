@@ -1010,5 +1010,52 @@ namespace NTR.Application.Services
             _log.Log("Roll", "Roll yayından alındı.", engineType.ToString());
             return CommandResult.Ok("Roll yayından alındı.");
         }
+
+        // ─── KELEBEK ─────────────────────────────────────────────
+        public CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            // Eski çalışan kodundaki syntax'ın birebir aynısı
+            engine.Send($"RENDERER*BACK_LAYER SET_OBJECT SCENE*{sahneYolu.TrimStart('/')}");
+            engine.Send("RENDERER*BACK_LAYER*ACTIVE SET 1");
+
+            _log.Log("Kelebek", "Kelebek sahnesi yüklendi.", $"{engineType} | {sahneYolu}");
+            return CommandResult.Ok($"Kelebek sahnesi yüklendi: {sahneYolu}");
+        }
+
+        public CommandResult KelebekIsimGonder(VizrtEngineType engineType, int index, string isim, string title)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            var trCulture = new System.Globalization.CultureInfo("tr-TR");
+            string isimBuyuk = isim.ToUpper(trCulture);
+
+            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET {isimBuyuk}");
+            engine.Send($"RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET {title}");
+            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIM{index}*FUNCTION*Maxsize*initialize SET");
+            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIMLIK_{index}*FUNCTION*ControlObject*in SET");
+
+            _log.Log("Kelebek", $"Kelebek isim gönderildi.", $"{engineType} | {index} | {isim} | {title}");
+            return CommandResult.Ok($"Kelebek isim gönderildi: {isim}");
+        }
+
+        public CommandResult KelebekKapat(VizrtEngineType engineType)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            // Eski çalışan kodundaki syntax'ın birebir aynısı
+            engine.Send("RENDERER*BACK_LAYER SET_OBJECT ");
+            engine.Send("RENDERER*BACK_LAYER*ACTIVE SET 0");
+
+            _log.Log("Kelebek", "Kelebek kapatıldı.", engineType.ToString());
+            return CommandResult.Ok("Kelebek kapatıldı.");
+        }
     }
 }
