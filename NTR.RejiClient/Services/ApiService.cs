@@ -50,10 +50,20 @@ namespace NTR.RejiClient.Services
                 string url = $"{_baseUrl}/{endpoint}";
                 var response = await _httpClient.GetAsync(url);
                 string json = await response.Content.ReadAsStringAsync();
+
+                // 1. Ajan: API'den 200 OK dışında bir şey dönerse ekrana basacak
+                if (!response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show($"API Hata Döndü!\nDurum: {response.StatusCode}\nYanıt: {json}", "API Bağlantı Hatası");
+                    return default;
+                }
+
                 return JsonConvert.DeserializeObject<T>(json);
             }
-            catch
+            catch (Exception ex)
             {
+                // 2. Ajan: C# tarafında ağ veya JSON çevirme hatası olursa ekrana basacak
+                MessageBox.Show($"GetAsync İçinde Patlama Oldu!\nURL: {endpoint}\nHata Mesajı: {ex.Message}", "Sistem Hatası");
                 return default;
             }
         }
@@ -230,5 +240,18 @@ namespace NTR.RejiClient.Services
 
         public async Task<ApiResult> KjSwapAsync(int id1, int id2)
             => await PostAsync($"api/kjlist/swap?id1={id1}&id2={id2}");
+
+        public async Task<ApiResult> RollVerAsync(string engineType, RollRequestDto request)
+        {
+            // Backend API'ye bu adresten post atacağız
+            return await PostAsync($"api/kj/{engineType}/roll/ver", request);
+        }
+
+        public async Task<ApiResult> RollAlAsync(string engineType)
+        {
+            // Roll'u yayından alma isteği
+            return await PostAsync($"api/kj/{engineType}/roll/al", null);
+        }
+
     }
 }

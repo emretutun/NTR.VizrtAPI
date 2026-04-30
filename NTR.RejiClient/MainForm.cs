@@ -1,4 +1,5 @@
-﻿using NTR.RejiClient.Models;
+﻿using NTR.RejiClient.Forms;
+using NTR.RejiClient.Models;
 using NTR.RejiClient.Services;
 
 namespace NTR.RejiClient
@@ -34,30 +35,49 @@ namespace NTR.RejiClient
         {
             this.Text = "NTR Reji Client - Show TV";
             this.KeyPreview = true;
-            this.KeyDown += MainForm_KeyDown;
+            this.KeyDown += MainForm_KeyDown!;
 
-            btnBaglan.Click += btnBaglan_Click;
-            btnTekliKJ.Click += btnTekliKJ_Click;
-            btnCiftliKJ.Click += btnCiftliKJ_Click;
-            btnUzunKJ.Click += btnUzunKJ_Click;
-            btnKJAl.Click += btnKJAl_Click;
-            btnTumunuAl.Click += btnTumunuAl_Click;
-            btnYerVer.Click += btnYerVer_Click;
-            btnYerAl.Click += btnYerAl_Click;
-            btnSosyalMedyaVer.Click += btnSosyalMedyaVer_Click;
-            btnSosyalMedyaAl.Click += btnSosyalMedyaAl_Click;
-            btnWhatsappVer.Click += btnWhatsappVer_Click;
-            btnWhatsappAl.Click += btnWhatsappAl_Click;
-            btnIsimlikVer.Click += btnIsimlikVer_Click;
-            btnIsimlikAl.Click += btnIsimlikAl_Click;
-            btnSunucuIsimlikVer.Click += btnSunucuIsimlikVer_Click;
-            btnSunucuIsimlikAl.Click += btnSunucuIsimlikAl_Click;
-            btnMuhabirKameramanVer.Click += btnMuhabirKameramanVer_Click;
-            btnMuhabirKameramanAl.Click += btnMuhabirKameramanAl_Click;
-            btnKaydet.Click += btnKaydet_Click;
-            btnSil.Click += btnSil_Click;
-            dgvHaberler.SelectionChanged += dgvHaberler_SelectionChanged;
-            dgvKjListesi.SelectionChanged += dgvKjListesi_SelectionChanged;
+            btnBaglan.Click += btnBaglan_Click!;
+            btnTekliKJ.Click += btnTekliKJ_Click!;
+            btnCiftliKJ.Click += btnCiftliKJ_Click!;
+            btnUzunKJ.Click += btnUzunKJ_Click!;
+            btnKJAl.Click += btnKJAl_Click!;
+            btnTumunuAl.Click += btnTumunuAl_Click!;
+            btnYerVer.Click += btnYerVer_Click!;
+            btnYerAl.Click += btnYerAl_Click!;
+            btnSosyalMedyaVer.Click += btnSosyalMedyaVer_Click!;
+            btnSosyalMedyaAl.Click += btnSosyalMedyaAl_Click!;
+            btnWhatsappVer.Click += btnWhatsappVer_Click!;
+            btnWhatsappAl.Click += btnWhatsappAl_Click!;
+            btnIsimlikVer.Click += btnIsimlikVer_Click!;
+            btnIsimlikAl.Click += btnIsimlikAl_Click!;
+            btnSunucuIsimlikVer.Click += btnSunucuIsimlikVer_Click!;
+            btnSunucuIsimlikAl.Click += btnSunucuIsimlikAl_Click!;
+            btnMuhabirKameramanVer.Click += btnMuhabirKameramanVer_Click!;
+            btnMuhabirKameramanAl.Click += btnMuhabirKameramanAl_Click!;
+            btnKaydet.Click += btnKaydet_Click!;
+            btnSil.Click += btnSil_Click!;
+            dgvHaberler.SelectionChanged += dgvHaberler_SelectionChanged!;
+            dgvKjListesi.SelectionChanged += dgvKjListesi_SelectionChanged!;
+            dtpTarih.ValueChanged += dtpTarih_ValueChanged!;
+            cmbAkislar.SelectedIndexChanged += cmbAkislar_SelectedIndexChanged!;
+            btnAkisYenile.Click += btnAkisYenile_Click!;
+            // SetupForm() içindeki mevcut kodlara şunları ekle:
+            cmbKanal.Items.Clear();
+            cmbKanal.Items.Add("Show TV");
+            cmbKanal.Items.Add("HaberTurk");
+            cmbKanal.SelectedIndex = 0; // Varsayılan olarak ilk kanalı seç
+
+            // Kanal değiştiğinde tetiklenecek event'i bağla
+            cmbKanal.SelectedIndexChanged += cmbKanal_SelectedIndexChanged!;
+        }
+        private async void cmbKanal_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // Kanal değiştiğinde o kanala ait akışları (Rundown) yeniden yükle
+            if (_isConnected)
+            {
+                await LoadRundownAsync();
+            }
         }
 
         private void SetupDgvHaberler()
@@ -147,29 +167,84 @@ namespace NTR.RejiClient
 
         private async Task LoadRundownAsync()
         {
-            string bugun = DateTime.Now.ToString("yyyy-MM-dd");
-            var rundownlar = await _api.GetRundownByTarihAsync(bugun);
-            if (rundownlar.Count > 0)
+            if (!_isConnected) return;
+
+            string seciliTarih = dtpTarih.Value.ToString("yyyy-MM-dd");
+            string seciliKanal = cmbKanal.SelectedItem?.ToString() ?? "Show TV";
+
+            // 1. O güne ait tüm akışları API'den çek
+            var tumRundownlar = await _api.GetRundownByTarihAsync(seciliTarih);
+
+            // 2. Çekilen akışları seçili KANALA göre filtrele (Sihir burada)
+            var rundownlar = tumRundownlar?.Where(r => r.Kanal == seciliKanal).ToList();
+
+            // ComboBox değişirken arkada gereksiz yere haber çekmesin diye eventi koparıyoruz
+            cmbAkislar.SelectedIndexChanged -= cmbAkislar_SelectedIndexChanged!;
+
+            if (rundownlar != null && rundownlar.Count > 0)
             {
+                cmbAkislar.DataSource = rundownlar;
+                cmbAkislar.DisplayMember = "DisplayText"; // Artık "Ana Haber (20:00)" şeklinde görünecek
+                cmbAkislar.ValueMember = "Id";
+                cmbAkislar.SelectedIndex = 0;
+
+                // Seçilen ilk akışın haberlerini getir
                 await LoadHaberlerAsync(rundownlar[0].Id);
             }
+            else
+            {
+                // O kanalda/tarihte akış yoksa ekranı temizle
+                cmbAkislar.DataSource = null;
+                cmbAkislar.Items.Clear();
+                cmbAkislar.Items.Add("Bu kanalda akış yok");
+                cmbAkislar.SelectedIndex = 0;
+
+                dgvHaberler.Rows.Clear();
+                dgvKjListesi.Rows.Clear();
+                _haberler.Clear();
+            }
+
+            // İşlem bitince eventi geri bağla
+            cmbAkislar.SelectedIndexChanged += cmbAkislar_SelectedIndexChanged!;
         }
 
         private async Task LoadHaberlerAsync(int rundownId)
         {
+            // Olası SelectionChanged spamlarını önlüyoruz
+            dgvHaberler.SelectionChanged -= dgvHaberler_SelectionChanged!;
+
             _haberler = await _api.GetHaberlerAsync(rundownId);
             dgvHaberler.Rows.Clear();
-            for (int i = 0; i < _haberler.Count; i++)
-            {
-                dgvHaberler.Rows.Add((i + 1).ToString(), _haberler[i].Baslik);
-            }
-        }
 
+            if (_haberler != null && _haberler.Count > 0)
+            {
+                for (int i = 0; i < _haberler.Count; i++)
+                {
+                    dgvHaberler.Rows.Add((i + 1).ToString(), _haberler[i].Baslik);
+                }
+
+                // İlk haberi otomatik seçip KJ'lerini getir
+                dgvHaberler.Rows[0].Selected = true;
+                await LoadKjListesiAsync(_haberler[0].Id);
+            }
+            else
+            {
+                // Haberi olmayan akış gelirse KJ listesini de temizle
+                dgvKjListesi.Rows.Clear();
+            }
+
+            // Eventi geri bağlıyoruz
+            dgvHaberler.SelectionChanged += dgvHaberler_SelectionChanged!;
+        }
         private async void dgvHaberler_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvHaberler.SelectedRows.Count == 0) return;
+
             int index = dgvHaberler.SelectedRows[0].Index;
-            if (index >= _haberler.Count) return;
+
+            // Güvenlik duvarı: Grid'deki index, listemizin sınırlarını aşıyor mu?
+            if (index < 0 || index >= _haberler.Count) return;
+
             await LoadKjListesiAsync(_haberler[index].Id);
         }
 
@@ -177,13 +252,19 @@ namespace NTR.RejiClient
         {
             _kjListesi = await _api.GetKjListesiAsync(haberId);
             dgvKjListesi.Rows.Clear();
+
+            if (_kjListesi == null) return;
+
             for (int i = 0; i < _kjListesi.Count; i++)
             {
-                string tip = _kjListesi[i].Type == 0 ? "TEKLİ" :
-                             _kjListesi[i].Type == 1 ? "ÇİFTLİ" : "UZUN";
+
+                string ekranaYazilacakTip = !string.IsNullOrWhiteSpace(_kjListesi[i].Aciklama)
+                    ? _kjListesi[i].Aciklama
+                    : (_kjListesi[i].Type == 0 ? "TEKLİ" : _kjListesi[i].Type == 1 ? "ÇİFTLİ" : "UZUN");
+
                 dgvKjListesi.Rows.Add(
                     (i + 1).ToString(),
-                    tip,
+                    ekranaYazilacakTip, // Artık tabloya "TEKLİ" yerine veritabanındaki gerçek ismi basıyoruz!
                     _kjListesi[i].Text1,
                     _kjListesi[i].Text2);
             }
@@ -196,11 +277,44 @@ namespace NTR.RejiClient
             if (index >= _kjListesi.Count) return;
 
             var kj = _kjListesi[index];
-            string tip = kj.Type == 0 ? "TEKLİ KJ" :
-                         kj.Type == 1 ? "ÇİFTLİ KJ" : "UZUN KJ";
-            lblSahneTipi.Text = $"SAHNE TİPİ: {tip}";
-            txtKjMetin1.Text = kj.Text1;
-            txtKjMetin2.Text = kj.Text2;
+
+            string gercekTip = !string.IsNullOrWhiteSpace(kj.Aciklama)
+                ? kj.Aciklama
+                : (kj.Type == 0 ? "TEKLİ KJ" : kj.Type == 1 ? "ÇİFTLİ KJ" : "UZUN KJ");
+
+            lblSahneTipi.Text = $"SAHNE TİPİ: {gercekTip}";
+
+            // Verileri operatörün müdahale edebileceği TextBox'lara basıyoruz!
+            txtKjMetin1.Text = System.Text.RegularExpressions.Regex.Unescape(kj.Text1 ?? "");
+            txtKjMetin2.Text = System.Text.RegularExpressions.Regex.Unescape(kj.Text2 ?? "");
+        }
+        // ─── YENİ EKLENEN EVENTLER ────────────────────────────────────────
+
+        // ComboBox'tan başka bir akış seçilirse
+        private async void cmbAkislar_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cmbAkislar.SelectedValue is int rundownId)
+            {
+                await LoadHaberlerAsync(rundownId);
+            }
+        }
+
+        // Tarih değişirse
+        private async void dtpTarih_ValueChanged(object sender, EventArgs e)
+        {
+            if (_isConnected) // Sadece bağlıysak API'ye istek atsın
+            {
+                await LoadRundownAsync();
+            }
+        }
+
+        // Akış Yenile Butonu
+        private async void btnAkisYenile_Click(object sender, EventArgs e)
+        {
+            if (_isConnected)
+            {
+                await LoadRundownAsync();
+            }
         }
 
         // ─── KJ BUTONLARI ─────────────────────────────────────────
@@ -228,7 +342,7 @@ namespace NTR.RejiClient
             if (index >= _kjListesi.Count)
                 return (string.Empty, string.Empty);
 
-            return (_kjListesi[index].Text1, _kjListesi[index].Text2);
+            return (txtKjMetin1.Text.Trim(), txtKjMetin2.Text.Trim());
         }
 
         private async void btnTekliKJ_Click(object sender, EventArgs e)
@@ -376,22 +490,104 @@ namespace NTR.RejiClient
 
         // ─── MUHABİR KAMERAMAN ───────────────────────────────────
 
+        // ─── MUHABİR / KAMERAMAN (OTOMATİK BULMA) ──────────────────────────────
+
         private async void btnMuhabirKameramanVer_Click(object sender, EventArgs e)
         {
-            if (dgvKjListesi.SelectedRows.Count == 0) { ShowError("KJ seçiniz!"); return; }
-            int index = dgvKjListesi.SelectedRows[0].Index;
-            var kj = _kjListesi[index];
-            var result = await _api.MuhabirKameraVerAsync(_engineType, kj.Text1, kj.Text2);
-            HandleResult(result, btnMuhabirKameramanVer, btnMuhabirKameramanAl);
+            if (!_isConnected) return;
+
+            // 1. Listeden Muhabir ve Kameramanı otomatik bul (Aciklama içinde arıyoruz)
+            var muhabirKj = _kjListesi.FirstOrDefault(x => x.Aciklama.IndexOf("Muhabir", StringComparison.OrdinalIgnoreCase) >= 0);
+            var kameramanKj = _kjListesi.FirstOrDefault(x => x.Aciklama.IndexOf("Kamera", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            // İkisi de yoksa uyarı ver
+            if (muhabirKj == null && kameramanKj == null)
+            {
+                ShowError("Bu haberin KJ listesinde 'Muhabir' veya 'Kameraman' açıklamalı bir kayıt bulunamadı!");
+                return;
+            }
+
+            // 2. İsimleri Text1 alanından al (Eğer null ise boş string gitmesini sağlıyoruz)
+            string muhabirIsim = muhabirKj?.Text1 ?? "";
+            string kameramanIsim = kameramanKj?.Text1 ?? "";
+
+            // 3. API'ye gönder
+            var result = await _api.MuhabirKameraVerAsync(_engineType, muhabirIsim, kameramanIsim);
+
+            if (result.Success)
+            {
+                // 4. Buton renklerini güncelle
+                btnMuhabirKameramanVer.BackColor = OnAirColor;
+                btnMuhabirKameramanVer.ForeColor = Color.White;
+                btnMuhabirKameramanVer.Text = "YAYINDA";
+                btnMuhabirKameramanAl.BackColor = AlColor;
+                btnMuhabirKameramanAl.Enabled = true;
+
+                // 5. Grid (Tablo) üzerindeki ilgili satırları kırmızıya (Yayında) boya
+                int muhabirIndex = muhabirKj != null ? _kjListesi.IndexOf(muhabirKj) : -1;
+                int kameraIndex = kameramanKj != null ? _kjListesi.IndexOf(kameramanKj) : -1;
+
+                if (muhabirIndex >= 0)
+                {
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.BackColor = OnAirColor;
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.ForeColor = Color.White;
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.SelectionBackColor = Color.DarkRed;
+                }
+
+                if (kameraIndex >= 0)
+                {
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.BackColor = OnAirColor;
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.ForeColor = Color.White;
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.SelectionBackColor = Color.DarkRed;
+                }
+
+                // Seçimi en alttaki KJ'ye veya bir sonrakine atlat
+                int maxIndex = Math.Max(muhabirIndex, kameraIndex);
+                if (maxIndex != -1 && maxIndex < dgvKjListesi.Rows.Count - 1)
+                {
+                    dgvKjListesi.ClearSelection();
+                    dgvKjListesi.Rows[maxIndex + 1].Selected = true;
+                }
+            }
+            else
+            {
+                ShowError($"Hata: {result.Message}");
+            }
         }
 
         private async void btnMuhabirKameramanAl_Click(object sender, EventArgs e)
         {
+            if (!_isConnected) return;
+
             var result = await _api.MuhabirKameraAlAsync(_engineType);
+
             if (result.Success)
             {
+                // Butonları eski haline getir
                 btnMuhabirKameramanVer.BackColor = OffAirColor;
+                btnMuhabirKameramanVer.ForeColor = Color.Black;
+                btnMuhabirKameramanVer.Text = "MUHABİR KAMERAMAN VER";
                 btnMuhabirKameramanAl.BackColor = AlColor;
+
+                // Grid üzerindeki Kırmızı satırların boyasını temizle
+                var muhabirKj = _kjListesi.FirstOrDefault(x => x.Aciklama.IndexOf("Muhabir", StringComparison.OrdinalIgnoreCase) >= 0);
+                var kameramanKj = _kjListesi.FirstOrDefault(x => x.Aciklama.IndexOf("Kamera", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                int muhabirIndex = muhabirKj != null ? _kjListesi.IndexOf(muhabirKj) : -1;
+                int kameraIndex = kameramanKj != null ? _kjListesi.IndexOf(kameramanKj) : -1;
+
+                if (muhabirIndex >= 0)
+                {
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.BackColor = Color.Empty;
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.ForeColor = Color.Empty;
+                    dgvKjListesi.Rows[muhabirIndex].DefaultCellStyle.SelectionBackColor = Color.Empty;
+                }
+                if (kameraIndex >= 0)
+                {
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.BackColor = Color.Empty;
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.ForeColor = Color.Empty;
+                    dgvKjListesi.Rows[kameraIndex].DefaultCellStyle.SelectionBackColor = Color.Empty;
+                }
             }
         }
 
@@ -399,19 +595,37 @@ namespace NTR.RejiClient
 
         private async void btnKaydet_Click(object sender, EventArgs e)
         {
-            if (dgvKjListesi.SelectedRows.Count == 0) return;
+            if (!_isConnected) return;
+            if (dgvKjListesi.SelectedRows.Count == 0)
+            {
+                ShowError("Lütfen önce listeden güncellenecek KJ'yi seçin!");
+                return;
+            }
+
+            // Seçili satırın indeksini ve orjinal KJ modelini al
             int index = dgvKjListesi.SelectedRows[0].Index;
             var kj = _kjListesi[index];
+
+            // TextBox'taki GÜNCEL veriyi modele aktar
             kj.Text1 = txtKjMetin1.Text;
             kj.Text2 = txtKjMetin2.Text;
+
+            // API'ye güncelleme isteği at
             var result = await _api.KjGuncelleAsync(kj.Id, kj.HaberId, kj.Aciklama, kj.Type, kj.Text1, kj.Text2);
+
             if (result.Success)
             {
-                ShowInfo("KJ kaydedildi.");
-                if (dgvHaberler.SelectedRows.Count > 0)
-                    await LoadKjListesiAsync(_haberler[dgvHaberler.SelectedRows[0].Index].Id);
+                // Başarılıysa, API'den tüm listeyi baştan çekmek yerine (hız için) 
+                // doğrudan ekrandaki tabloyu güncelliyoruz!
+                dgvKjListesi.Rows[index].Cells[2].Value = kj.Text1;
+                dgvKjListesi.Rows[index].Cells[3].Value = kj.Text2;
+
+                // (İsteğe bağlı) ShowInfo("KJ güncellendi"); // Sürekli pop-up çıkmasın diye bunu silebilirsin.
             }
-            else ShowError(result.Message);
+            else
+            {
+                ShowError($"Güncelleme başarısız: {result.Message}");
+            }
         }
 
         private async void btnSil_Click(object sender, EventArgs e)
@@ -501,6 +715,19 @@ namespace NTR.RejiClient
         private void btnBaglan_Click_1(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnRollEkraniAc_Click(object sender, EventArgs e)
+        {
+            if (!_isConnected)
+            {
+                ShowError("Önce API'ye bağlanmalısınız!");
+                return;
+            }
+
+            // _engineType'ı da gönderiyoruz (Eğer _engineType sende enum ise _engineType.ToString() yapabilirsin)
+            RollForm rollForm = new RollForm(_api, _engineType.ToString());
+            rollForm.Show();
         }
     }
 }

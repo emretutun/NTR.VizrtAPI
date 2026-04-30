@@ -62,5 +62,9 @@ namespace NTR.Core.Interfaces
         // Whatsapp
         CommandResult SendWhatsapp(VizrtEngineType engineType);
         CommandResult TakeWhatsapp(VizrtEngineType engineType);
+
+        // Roll
+        CommandResult SendRoll(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar);
+        CommandResult TakeRoll(VizrtEngineType engineType);
     }
 }

@@ -14,5 +14,6 @@ namespace NTR.RejiClient.Models
         public string Saat { get; set; } = string.Empty;
         public string Kanal { get; set; } = string.Empty;
         public List<Haber> Haberler { get; set; } = new();
+        public string DisplayText => $"{Ad} ({Saat})";
     }
 }

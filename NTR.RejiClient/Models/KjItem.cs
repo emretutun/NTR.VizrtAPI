@@ -15,5 +15,6 @@ namespace NTR.RejiClient.Models
         public string Text1 { get; set; } = string.Empty;
         public string Text2 { get; set; } = string.Empty;
         public int Sira { get; set; }
+        public int? Rozet { get; set; }
     }
 }

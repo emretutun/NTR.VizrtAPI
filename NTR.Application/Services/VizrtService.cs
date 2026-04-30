@@ -1,4 +1,5 @@
-﻿using NTR.Core.Entities;
+﻿using NTR.Application.DTOs;
+using NTR.Core.Entities;
 using NTR.Core.Enums;
 using NTR.Core.Interfaces;
 using NTR.Infrastructure.Vizrt;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
+using NTR.Application.DTOs;
 
 namespace NTR.Application.Services
 {
@@ -907,6 +909,106 @@ namespace NTR.Application.Services
                 _whatsappOnAir[engineType] = false;
             }
             return CommandResult.Ok("Whatsapp yayından alındı.");
+        }
+        public CommandResult SendRoll(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            string scene = _kjScenePath[engineType];
+
+            // 0. EKRANI TEMİZLE VE BEKLE
+            TakeAll(engineType);
+            Thread.Sleep(1000); // Açık olan grafiklerin çıkış animasyonu için 1 saniye bekle
+
+            int doluSatirSayisi = 0;
+            int vizrtKapasite = 24;
+            var trCulture = new System.Globalization.CultureInfo("tr-TR");
+
+            // 1. İSİM VE ÜNVANLARI GÖNDER
+            for (int i = 0; i < vizrtKapasite; i++)
+            {
+                int sira = i + 1;
+                string unvan = "";
+                string isim = "";
+
+                if (satirlar != null && i < satirlar.Count)
+                {
+                    // Verileri alırken Türkçe karakter kurallarına göre büyütüyoruz
+                    unvan = (satirlar[i].Baslik ?? "").ToUpper(trCulture);
+                    isim = (satirlar[i].Yazi ?? "").ToUpper(trCulture);
+                }
+
+                // baslik konteynerlarına Unvan, yazi konteynerlarına İsim atıyoruz
+                engine.SetObjectText(scene, $"baslik{sira}", unvan);
+                engine.SetObjectText(scene, $"yazi{sira}", isim);
+
+                if (!string.IsNullOrWhiteSpace(unvan) || !string.IsNullOrWhiteSpace(isim))
+                {
+                    doluSatirSayisi++;
+                    engine.Visibility(scene, $"baslik{sira}", true);
+                    engine.Visibility(scene, $"yazi{sira}", true);
+                }
+                else
+                {
+                    engine.Visibility(scene, $"baslik{sira}", false);
+                    engine.Visibility(scene, $"yazi{sira}", false);
+                }
+            }
+
+            // 2. TEŞEKKÜR METNİNİ GÖNDER
+            engine.SetObjectText(scene, "tesekkur", (tesekkurYazisi ?? "").ToUpper(trCulture));
+
+            // 3. SPONSOR/REKLAM LOGOLARINI GÖNDER
+            string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
+            for (int k = 1; k <= 5; k++)
+            {
+                if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                {
+                    string resimAdi = sponsorlar[k - 1];
+                    string tamResimYolu = klasorYolu + resimAdi;
+
+                    engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {tamResimYolu}");
+                    engine.Visibility(scene, $"reklam_image_{k}", true);
+                }
+                else
+                {
+                    engine.Visibility(scene, $"reklam_image_{k}", false);
+                }
+            }
+
+            // 4. DİNAMİK Y EKSENİ (BİTİŞ MESAFESİ) HESAPLAMA
+            int tesekkurSatirDegeri = string.IsNullOrWhiteSpace(tesekkurYazisi) ? 0 : 3;
+            int reklamSatirDegeri = (sponsorlar?.Count ?? 0) * 2;
+
+            int toplamSanalSatir = doluSatirSayisi + tesekkurSatirDegeri + reklamSatirDegeri;
+            if (toplamSanalSatir == 0) toplamSanalSatir = 1;
+
+            double targetY = 490.0 + ((toplamSanalSatir - 12) * 48.0);
+            string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
+
+            string keyframePosCmd = $"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0";
+            engine.Send(keyframePosCmd);
+
+            // 5. ANİMASYONU BAŞLAT
+            engine.Play(scene, "KJ_TUM$ROLL$IN");
+
+            _log.Log("Roll", "Roll yayına verildi.", $"Dolu Satır: {doluSatirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
+            return CommandResult.Ok("Roll yayına verildi.");
+        }
+
+        public CommandResult TakeRoll(VizrtEngineType engineType)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected)
+                return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            string scene = _kjScenePath[engineType];
+            engine.Play(scene, "KJ_TUM$ROLL$OUT");
+
+            _log.Log("Roll", "Roll yayından alındı.", engineType.ToString());
+            return CommandResult.Ok("Roll yayından alındı.");
         }
     }
 }

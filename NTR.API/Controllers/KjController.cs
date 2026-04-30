@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using NTR.Application.DTOs;
 using NTR.Core.Enums;
 using NTR.Core.Interfaces;
+using System.Linq;
+
 
 namespace NTR.API.Controllers
 {
@@ -171,6 +173,23 @@ namespace NTR.API.Controllers
         public IActionResult WhatsappAl(VizrtEngineType engineType)
         {
             var result = _vizrtService.TakeWhatsapp(engineType);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("{engineType}/roll/ver")]
+        public IActionResult RollVer(VizrtEngineType engineType, [FromBody] RollRequestDto dto)
+        {
+            // Clean Architecture gereği: DTO'daki satırları (Tuple) listesine çevirip Core'a yolluyoruz
+            var satirlar = dto.Satirlar.Select(s => (s.Baslik, s.Yazi)).ToList();
+
+            var result = _vizrtService.SendRoll(engineType, dto.TesekkurYazisi, satirlar, dto.Sponsorlar);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("{engineType}/roll/al")]
+        public IActionResult RollAl(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.TakeRoll(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
