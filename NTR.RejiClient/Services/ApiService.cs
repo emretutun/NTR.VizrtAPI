@@ -252,6 +252,26 @@ namespace NTR.RejiClient.Services
             // Roll'u yayından alma isteği
             return await PostAsync($"api/kj/{engineType}/roll/al", null);
         }
+        // ─── KELEBEK (MULTI-GUEST) ──────────────────────────────────
+
+        public async Task<ApiResult> KelebekSahneYukleAsync(string engineType, string sahneYolu)
+        {
+            // Backend: [HttpPost("{engineType}/kelebek/sahne")]
+            // Not: Sahne yolu body'den string olarak gittiği için objeye sarıyoruz.
+            return await PostAsync($"api/kj/{engineType}/kelebek/sahne", new { sahneYolu });
+        }
+
+        public async Task<ApiResult> KelebekIsimGonderAsync(string engineType, int index, string isim, string title)
+        {
+            // Backend: [HttpPost("{engineType}/kelebek/isim")]
+            return await PostAsync($"api/kj/{engineType}/kelebek/isim", new { index, isim, title });
+        }
+
+        public async Task<ApiResult> KelebekKapatAsync(string engineType)
+        {
+            // Backend: [HttpPost("{engineType}/kelebek/kapat")]
+            return await PostAsync($"api/kj/{engineType}/kelebek/kapat", null);
+        }
 
     }
 }

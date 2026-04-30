@@ -729,5 +729,19 @@ namespace NTR.RejiClient
             RollForm rollForm = new RollForm(_api, _engineType.ToString());
             rollForm.Show();
         }
+
+        private void btnKelebek_Click(object sender, EventArgs e)
+        {
+            if (!_isConnected)
+            {
+                ShowError("Önce API'ye bağlanmalısınız!");
+                return;
+            }
+
+            // Roll ekranında '_api' kullandığın için burada da '_api' kullanmalısın.
+            // Ayrıca Kelebek formuna _config nesnesini de gönderiyoruz.
+            Kelebek kelebekFormu = new Kelebek(_api, _config);
+            kelebekFormu.Show();
+        }
     }
 }
