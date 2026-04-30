@@ -927,9 +927,27 @@ POST https://localhost:7043/api/kj/{engineType}/rozet/al?rozetType=SonDakika
 ```http
 POST https://localhost:7043/api/kj/{engineType}/rozet/tumunu-al
 ```
+## 🦋 Kelebek (Multi-Guest) Yönetimi
+
+Kelebek sistemi; çoklu konukların isim ve unvan bilgilerinin aynı anda ekranda gösterilmesini sağlar. Sahne, arka katmana (Back Layer) yüklenir ve her konuk dinamik olarak yönetilir.
 
 ---
 
+### Kelebek Sahnesi Yükle
+```http
+POST https://localhost:7043/api/kj/{engineType}/kelebek/sahne
+Content-Type: application/json
+```
+### Kelebek İsim yükleme
+```
+POST https://localhost:7043/api/kj/{engineType}/kelebek/isim
+Content-Type: application/json
+```
+### Kelebek Sahne Kapat
+```
+POST https://localhost:7043/api/kj/{engineType}/kelebek/kapat
+---
+```
 ## 📋 Rundown Yönetimi
 
 Yayın planı (Rundown) yönetimi - gün bazlı yayın takvimi.
