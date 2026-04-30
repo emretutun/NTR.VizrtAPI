@@ -943,8 +943,11 @@ Content-Type: application/json
 POST https://localhost:7043/api/kj/{engineType}/kelebek/isim
 Content-Type: application/json
 ```
+### Kelebek Sahne Kapat
+```
+POST https://localhost:7043/api/kj/{engineType}/kelebek/kapat
 ---
-
+```
 ## 📋 Rundown Yönetimi
 
 Yayın planı (Rundown) yönetimi - gün bazlı yayın takvimi.
