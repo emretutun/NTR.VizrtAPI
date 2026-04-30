@@ -16,8 +16,6 @@ namespace NTR.RejiClient.Forms
         private readonly AppConfig _config;
         private readonly string _dataFolder;
 
-        private Dictionary<string, string> _isimTitleListesi = new Dictionary<string, string>();
-
         public Kelebek(ApiService apiService, AppConfig config)
         {
             InitializeComponent();
@@ -26,6 +24,7 @@ namespace NTR.RejiClient.Forms
 
             _dataFolder = Path.Combine(Application.StartupPath, "KelebekGorselleri");
             KelebekListesiniDoldur();
+            InitializeLocalEvents();
         }
 
         private void KelebekListesiniDoldur()
@@ -42,69 +41,68 @@ namespace NTR.RejiClient.Forms
             }
         }
 
-        private async Task KisiGonderAsync(int index, string isim, string title)
+        private void InitializeLocalEvents()
         {
-            string formatliIsim = isim?.ToUpper(new CultureInfo("tr-TR")) ?? "";
-            string formatliTitle = title?.ToUpper(new CultureInfo("tr-TR")) ?? "";
-
-            await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, formatliIsim, formatliTitle);
+            // Temizle butonlarını bağlıyoruz
+            btn_temizle1.Click += (s, e) => { txtIsim1.Clear(); txtTitle1.Clear(); };
+            btn_temizle2.Click += (s, e) => { txtIsim2.Clear(); txtTitle2.Clear(); };
+            btn_temizle3.Click += (s, e) => { txtIsim3.Clear(); txtTitle3.Clear(); };
+            btn_temizle4.Click += (s, e) => { txtIsim4.Clear(); txtTitle4.Clear(); };
+            btn_temizle5.Click += (s, e) => { txtIsim5.Clear(); txtTitle5.Clear(); };
         }
 
-        // İstediğin Sıralama: Önce Sahneyi Ver, Sonra İsimleri Güncelle
-        private async Task KelebekYayinaVerAsync()
+        // --- BUTON 1: SADECE SAHNEYİ YÜKLER (BACK LAYER LOAD) ---
+        private async void btnSahneGec_Click(object sender, EventArgs e)
         {
-            if (lst_kelebek.SelectedItem == null)
-            {
-                MessageBox.Show("Lütfen bir kelebek türü seçin!");
-                return;
-            }
+            if (lst_kelebek.SelectedItem == null) return;
 
-            string sahneYolu = _config.ScenePath;
+            string secilenKelebek = lst_kelebek.SelectedItem.ToString();
 
-            // 1. Sahneyi Arka Katmana Yükle
-            var result = await _apiService.KelebekSahneYukleAsync(_config.EngineType, sahneYolu);
+            // Senin verdiğin dizin yapısına göre tam yolu oluşturuyoruz
+            string tamSahneYolu = $"SHOW_TV_2025/REJI/YENI_SAYFA/KELEBEK/{secilenKelebek}";
+
+            var result = await _apiService.KelebekSahneYukleAsync(_config.EngineType, tamSahneYolu);
 
             if (result.Success)
             {
-                // 2. Sadece kutusu dolu olan kişileri gönder ve animasyonlarını başlat
-                // txtIsim1 doluysa 1. kişiyi gönder ve 1. animasyonu oynat
+                btnSahneGec.BackColor = Color.Yellow;
+            }
+        }
+
+        // --- BUTON 2: İSİMLERİ GÖNDERİR VE ANİMASYONLARI TETİKLER ---
+        private async void btnIsimlikleriVer_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Sadece kutusu dolu olanları animasyonlu gönder, diğerlerini sadece set et
                 await KisiVeAnimasyonGonder(1, txtIsim1.Text, txtTitle1.Text);
                 await KisiVeAnimasyonGonder(2, txtIsim2.Text, txtTitle2.Text);
-                await KisiGonderAsync(3, txtIsim3.Text, txtTitle3.Text); // 3-4-5 için de aynısı...
-                await KisiGonderAsync(4, txtIsim4.Text, txtTitle4.Text);
-                await KisiGonderAsync(5, txtIsim5.Text, txtTitle5.Text);
-
-                // Not: 3-4-5 için de animasyon isimlerin 'DIRECTOR*KISI3' şeklindeyse 
-                // onları da KisiVeAnimasyonGonder ile çağırabilirsin.
+                await KisiVeAnimasyonGonder(3, txtIsim3.Text, txtTitle3.Text);
+                await KisiVeAnimasyonGonder(4, txtIsim4.Text, txtTitle4.Text);
+                await KisiVeAnimasyonGonder(5, txtIsim5.Text, txtTitle5.Text);
 
                 btnIsimlikleriVer.BackColor = Color.Red;
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show("İsimlikler gönderilirken hata: " + ex.Message);
+            }
         }
+
         private async Task KisiVeAnimasyonGonder(int index, string isim, string title)
-{
-    if (string.IsNullOrWhiteSpace(isim)) return;
-
-    // Önce veriyi set et
-    await KisiGonderAsync(index, isim, title);
-
-    // Sadece bu kişiye ait animasyonu (IN) başlat
-    // Vizrt sahne yapına göre "KISI1", "ISIM1" veya "1" director ismini kontrol et
-    string command = $"DIRECTOR*KISI{index} PLAY"; 
-    await _apiService.SendRawCommandAsync(_config.EngineType, command);
-}
-
-        private async Task IsimleriGuncelleAsync()
         {
-            await KisiGonderAsync(1, txtIsim1.Text, txtTitle1.Text);
-            await KisiGonderAsync(2, txtIsim2.Text, txtTitle2.Text);
-            await KisiGonderAsync(3, txtIsim3.Text, txtTitle3.Text);
-            await KisiGonderAsync(4, txtIsim4.Text, txtTitle4.Text);
-            await KisiGonderAsync(5, txtIsim5.Text, txtTitle5.Text);
-        }
+            if (string.IsNullOrWhiteSpace(isim)) return;
 
-        private async void btnIsimlikleriVer_Click(object sender, EventArgs e)
-        {
-            await KelebekYayinaVerAsync();
+            // 1. Veriyi Set Et (API asenkron çağrılır)
+            string formatliIsim = isim.ToUpper(new CultureInfo("tr-TR"));
+            string formatliTitle = title.ToUpper(new CultureInfo("tr-TR"));
+
+            await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, formatliIsim, formatliTitle);
+
+            // 2. Sadece o kişiye özel animasyonu (Director) oynat
+            // Vizrt sahne yapındaki Director ismine göre: KISI1, KISI2...
+            string command = $"DIRECTOR*KISI{index} PLAY";
+            await _apiService.SendRawCommandAsync(_config.EngineType, command);
         }
 
         private async void btn_kelebek_al_Click(object sender, EventArgs e)
@@ -112,7 +110,8 @@ namespace NTR.RejiClient.Forms
             var result = await _apiService.KelebekKapatAsync(_config.EngineType);
             if (result.Success)
             {
-                btnIsimlikleriVer.BackColor = Color.LimeGreen;
+                btnIsimlikleriVer.BackColor = Color.Empty;
+                btnSahneGec.BackColor = Color.Empty;
             }
         }
 
@@ -123,7 +122,6 @@ namespace NTR.RejiClient.Forms
             txtIsim3.Text = txtTitle3.Text = "";
             txtIsim4.Text = txtTitle4.Text = "";
             txtIsim5.Text = txtTitle5.Text = "";
-
             pnl_kelebek_image.BackgroundImage = null;
         }
 

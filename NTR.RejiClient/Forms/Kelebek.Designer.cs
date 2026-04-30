@@ -63,6 +63,7 @@
             btnIsimlikleriVer = new Button();
             btnTumunuTemizle = new Button();
             btn_kelebek_al = new Button();
+            btnSahneGec = new Button();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -370,7 +371,7 @@
             btnIsimlikleriVer.Name = "btnIsimlikleriVer";
             btnIsimlikleriVer.Size = new Size(233, 50);
             btnIsimlikleriVer.TabIndex = 8;
-            btnIsimlikleriVer.Text = "Sahneye geç İsimlikleri Ver";
+            btnIsimlikleriVer.Text = "İsimlikleri Ver";
             btnIsimlikleriVer.UseVisualStyleBackColor = true;
             btnIsimlikleriVer.Click += btnIsimlikleriVer_Click;
             // 
@@ -395,11 +396,22 @@
             btn_kelebek_al.UseVisualStyleBackColor = true;
             btn_kelebek_al.Click += btn_kelebek_al_Click;
             // 
+            // btnSahneGec
+            // 
+            btnSahneGec.Location = new Point(876, 248);
+            btnSahneGec.Name = "btnSahneGec";
+            btnSahneGec.Size = new Size(151, 70);
+            btnSahneGec.TabIndex = 11;
+            btnSahneGec.Text = "Sahneye Geç";
+            btnSahneGec.UseVisualStyleBackColor = true;
+            btnSahneGec.Click += btnSahneGec_Click;
+            // 
             // Kelebek
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1573, 845);
+            Controls.Add(btnSahneGec);
             Controls.Add(btn_kelebek_al);
             Controls.Add(btnTumunuTemizle);
             Controls.Add(btnIsimlikleriVer);
@@ -462,5 +474,6 @@
         private Button btn_temizle5;
         private Button btnTumunuTemizle;
         private Button btn_kelebek_al;
+        private Button btnSahneGec;
     }
 }

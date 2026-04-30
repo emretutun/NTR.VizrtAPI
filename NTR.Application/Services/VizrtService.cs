@@ -1012,36 +1012,40 @@ namespace NTR.Application.Services
         }
 
         // ─── KELEBEK ─────────────────────────────────────────────
+        // ─── KELEBEK SAHNE YÜKLE ─────────────────────────────────────────────
         public CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu)
         {
             var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            // Eski çalışan kodundaki syntax'ın birebir aynısı
-            engine.Send($"RENDERER*BACK_LAYER SET_OBJECT SCENE*{sahneYolu.TrimStart('/')}");
-            engine.Send("RENDERER*BACK_LAYER*ACTIVE SET 1");
+            string cleanPath = sahneYolu.TrimStart('/');
 
-            _log.Log("Kelebek", "Kelebek sahnesi yüklendi.", $"{engineType} | {sahneYolu}");
+            // Sahneyi yükle ve aktif et (Postman'da çalışan syntax)
+            engine.Send($"-1 RENDERER*BACK_LAYER SET_OBJECT SCENE*{cleanPath}");
+            engine.Send("-1 RENDERER*BACK_LAYER*ACTIVE SET 1");
+
             return CommandResult.Ok($"Kelebek sahnesi yüklendi: {sahneYolu}");
         }
 
+        // ─── KELEBEK İSİM GÖNDER ─────────────────────────────────────────────
         public CommandResult KelebekIsimGonder(VizrtEngineType engineType, int index, string isim, string title)
         {
             var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
             var trCulture = new System.Globalization.CultureInfo("tr-TR");
-            string isimBuyuk = isim.ToUpper(trCulture);
+            string isimBuyuk = (isim ?? "").ToUpper(trCulture);
+            string titleBuyuk = (title ?? "").ToUpper(trCulture);
 
-            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET {isimBuyuk}");
-            engine.Send($"RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET {title}");
-            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIM{index}*FUNCTION*Maxsize*initialize SET");
-            engine.Send($"RENDERER*BACK_LAYER*TREE*$ISIMLIK_{index}*FUNCTION*ControlObject*in SET");
+            // Boşluklu metinler için çift tırnak ( \" ) ekliyoruz
+            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET \"{isimBuyuk}\"");
+            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET \"{titleBuyuk}\"");
 
-            _log.Log("Kelebek", $"Kelebek isim gönderildi.", $"{engineType} | {index} | {isim} | {title}");
-            return CommandResult.Ok($"Kelebek isim gönderildi: {isim}");
+            // Maxsize ve Animasyon tetikleme (Opsiyonel, sahne yapına göre)
+            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*FUNCTION*Maxsize*initialize SET");
+            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIMLIK_{index}*FUNCTION*ControlObject*in SET");
+
+            return CommandResult.Ok($"Kelebek isim gönderildi: {isimBuyuk}");
         }
 
         public CommandResult KelebekKapat(VizrtEngineType engineType)
