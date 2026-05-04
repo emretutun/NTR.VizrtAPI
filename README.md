@@ -12,7 +12,7 @@ Vizrt canlı yayın sistemi entegrasyonu için C# tabanlı ASP.NET Core API küt
 - [Veri Akışı](#-bir-isteğin-akışı)
 - [API Endpoint'leri](#-api-endpointleri)
   - [Engine Kontrol](#-engine-kontrol)
-  - [KJ (Kurucak Jayapım) Yönetimi]
+  - - [KJ Yönetimi](#-kj-kurucak-jayapım-yönetimi)
   - [Roll (Akan Yazı)](#-roll-akan-yazı)
   - [Kelebek (Çoklu Konuk)](#-kelebek-çoklu-konuk)
   - [Rundown Yönetimi](#-rundown-yönetimi)
