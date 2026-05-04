@@ -43,12 +43,18 @@ namespace NTR.RejiClient.Forms
 
         private void InitializeLocalEvents()
         {
-            // Temizle butonlarını bağlıyoruz
-            btn_temizle1.Click += (s, e) => { txtIsim1.Clear(); txtTitle1.Clear(); };
-            btn_temizle2.Click += (s, e) => { txtIsim2.Clear(); txtTitle2.Clear(); };
-            btn_temizle3.Click += (s, e) => { txtIsim3.Clear(); txtTitle3.Clear(); };
-            btn_temizle4.Click += (s, e) => { txtIsim4.Clear(); txtTitle4.Clear(); };
-            btn_temizle5.Click += (s, e) => { txtIsim5.Clear(); txtTitle5.Clear(); };
+            // Temizle butonlarına hem TextBox'ları hem de Vizrt'i temizleme görevi veriyoruz
+            btn_temizle1.Click += async (s, e) => { txtIsim1.Clear(); txtTitle1.Clear(); await VizrtKisiTemizle(1); };
+            btn_temizle2.Click += async (s, e) => { txtIsim2.Clear(); txtTitle2.Clear(); await VizrtKisiTemizle(2); };
+            btn_temizle3.Click += async (s, e) => { txtIsim3.Clear(); txtTitle3.Clear(); await VizrtKisiTemizle(3); };
+            btn_temizle4.Click += async (s, e) => { txtIsim4.Clear(); txtTitle4.Clear(); await VizrtKisiTemizle(4); };
+            btn_temizle5.Click += async (s, e) => { txtIsim5.Clear(); txtTitle5.Clear(); await VizrtKisiTemizle(5); };
+        }
+
+        // Vizrt tarafına boş veri göndererek o kişiyi ekrandan alan yardımcı fonksiyon
+        private async Task VizrtKisiTemizle(int index)
+        {
+            await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, "", "");
         }
 
         // --- BUTON 1: SADECE SAHNEYİ YÜKLER (BACK LAYER LOAD) ---
@@ -115,14 +121,22 @@ namespace NTR.RejiClient.Forms
             }
         }
 
-        private void btnTumunuTemizle_Click(object sender, EventArgs e)
+        private async void btnTumunuTemizle_Click(object sender, EventArgs e)
         {
+            // 1. Arayüzü Temizle
             txtIsim1.Text = txtTitle1.Text = "";
             txtIsim2.Text = txtTitle2.Text = "";
             txtIsim3.Text = txtTitle3.Text = "";
             txtIsim4.Text = txtTitle4.Text = "";
             txtIsim5.Text = txtTitle5.Text = "";
             pnl_kelebek_image.BackgroundImage = null;
+
+            // 2. Vizrt Tarafını Temizle
+            await VizrtKisiTemizle(1);
+            await VizrtKisiTemizle(2);
+            await VizrtKisiTemizle(3);
+            await VizrtKisiTemizle(4);
+            await VizrtKisiTemizle(5);
         }
 
         private void lst_kelebek_SelectedIndexChanged(object sender, EventArgs e)

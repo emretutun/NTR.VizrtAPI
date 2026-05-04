@@ -96,6 +96,7 @@
             groupBox1.Controls.Add(label1);
             groupBox1.Controls.Add(txtTitle1);
             groupBox1.Controls.Add(btn_temizle1);
+            groupBox1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             groupBox1.Location = new Point(48, 545);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(341, 177);
@@ -108,7 +109,7 @@
             label2.AutoSize = true;
             label2.Location = new Point(6, 99);
             label2.Name = "label2";
-            label2.Size = new Size(29, 15);
+            label2.Size = new Size(40, 20);
             label2.TabIndex = 5;
             label2.Text = "Title";
             // 
@@ -116,7 +117,7 @@
             // 
             txtIsim1.Location = new Point(115, 58);
             txtIsim1.Name = "txtIsim1";
-            txtIsim1.Size = new Size(100, 23);
+            txtIsim1.Size = new Size(100, 27);
             txtIsim1.TabIndex = 4;
             // 
             // label1
@@ -124,7 +125,7 @@
             label1.AutoSize = true;
             label1.Location = new Point(6, 61);
             label1.Name = "label1";
-            label1.Size = new Size(29, 15);
+            label1.Size = new Size(39, 20);
             label1.TabIndex = 4;
             label1.Text = "İsim";
             // 
@@ -132,14 +133,14 @@
             // 
             txtTitle1.Location = new Point(115, 96);
             txtTitle1.Name = "txtTitle1";
-            txtTitle1.Size = new Size(100, 23);
+            txtTitle1.Size = new Size(100, 27);
             txtTitle1.TabIndex = 5;
             // 
             // btn_temizle1
             // 
-            btn_temizle1.Location = new Point(126, 138);
+            btn_temizle1.Location = new Point(116, 138);
             btn_temizle1.Name = "btn_temizle1";
-            btn_temizle1.Size = new Size(75, 23);
+            btn_temizle1.Size = new Size(99, 33);
             btn_temizle1.TabIndex = 6;
             btn_temizle1.Text = "TEMİZLE";
             btn_temizle1.UseVisualStyleBackColor = true;
@@ -151,9 +152,10 @@
             groupBox2.Controls.Add(label4);
             groupBox2.Controls.Add(txtTitle5);
             groupBox2.Controls.Add(btn_temizle5);
-            groupBox2.Location = new Point(1226, 334);
+            groupBox2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
+            groupBox2.Location = new Point(1220, 324);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new Size(341, 177);
+            groupBox2.Size = new Size(341, 187);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "5.";
@@ -163,7 +165,7 @@
             label3.AutoSize = true;
             label3.Location = new Point(6, 99);
             label3.Name = "label3";
-            label3.Size = new Size(29, 15);
+            label3.Size = new Size(40, 20);
             label3.TabIndex = 5;
             label3.Text = "Title";
             // 
@@ -171,7 +173,7 @@
             // 
             txtIsim5.Location = new Point(115, 58);
             txtIsim5.Name = "txtIsim5";
-            txtIsim5.Size = new Size(100, 23);
+            txtIsim5.Size = new Size(100, 27);
             txtIsim5.TabIndex = 4;
             // 
             // label4
@@ -179,7 +181,7 @@
             label4.AutoSize = true;
             label4.Location = new Point(6, 61);
             label4.Name = "label4";
-            label4.Size = new Size(29, 15);
+            label4.Size = new Size(39, 20);
             label4.TabIndex = 4;
             label4.Text = "İsim";
             // 
@@ -187,14 +189,14 @@
             // 
             txtTitle5.Location = new Point(115, 96);
             txtTitle5.Name = "txtTitle5";
-            txtTitle5.Size = new Size(100, 23);
+            txtTitle5.Size = new Size(100, 27);
             txtTitle5.TabIndex = 5;
             // 
             // btn_temizle5
             // 
             btn_temizle5.Location = new Point(126, 138);
             btn_temizle5.Name = "btn_temizle5";
-            btn_temizle5.Size = new Size(75, 23);
+            btn_temizle5.Size = new Size(89, 43);
             btn_temizle5.TabIndex = 6;
             btn_temizle5.Text = "TEMİZLE";
             btn_temizle5.UseVisualStyleBackColor = true;
@@ -206,6 +208,7 @@
             groupBox3.Controls.Add(label6);
             groupBox3.Controls.Add(txtTitle4);
             groupBox3.Controls.Add(btn_temizle4);
+            groupBox3.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
             groupBox3.Location = new Point(1220, 545);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new Size(341, 177);
@@ -218,7 +221,7 @@
             label5.AutoSize = true;
             label5.Location = new Point(6, 99);
             label5.Name = "label5";
-            label5.Size = new Size(29, 15);
+            label5.Size = new Size(40, 20);
             label5.TabIndex = 5;
             label5.Text = "Title";
             // 
@@ -226,7 +229,7 @@
             // 
             txtIsim4.Location = new Point(115, 58);
             txtIsim4.Name = "txtIsim4";
-            txtIsim4.Size = new Size(100, 23);
+            txtIsim4.Size = new Size(100, 27);
             txtIsim4.TabIndex = 4;
             // 
             // label6
@@ -234,7 +237,7 @@
             label6.AutoSize = true;
             label6.Location = new Point(6, 61);
             label6.Name = "label6";
-            label6.Size = new Size(29, 15);
+            label6.Size = new Size(39, 20);
             label6.TabIndex = 4;
             label6.Text = "İsim";
             // 
@@ -242,14 +245,14 @@
             // 
             txtTitle4.Location = new Point(115, 96);
             txtTitle4.Name = "txtTitle4";
-            txtTitle4.Size = new Size(100, 23);
+            txtTitle4.Size = new Size(100, 27);
             txtTitle4.TabIndex = 5;
             // 
             // btn_temizle4
             // 
             btn_temizle4.Location = new Point(126, 138);
             btn_temizle4.Name = "btn_temizle4";
-            btn_temizle4.Size = new Size(75, 23);
+            btn_temizle4.Size = new Size(101, 33);
             btn_temizle4.TabIndex = 6;
             btn_temizle4.Text = "TEMİZLE";
             btn_temizle4.UseVisualStyleBackColor = true;
@@ -261,6 +264,7 @@
             groupBox4.Controls.Add(label8);
             groupBox4.Controls.Add(txtTitle3);
             groupBox4.Controls.Add(btn_temizle3);
+            groupBox4.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
             groupBox4.Location = new Point(826, 545);
             groupBox4.Name = "groupBox4";
             groupBox4.Size = new Size(341, 177);
@@ -273,7 +277,7 @@
             label7.AutoSize = true;
             label7.Location = new Point(6, 99);
             label7.Name = "label7";
-            label7.Size = new Size(29, 15);
+            label7.Size = new Size(40, 20);
             label7.TabIndex = 5;
             label7.Text = "Title";
             // 
@@ -281,7 +285,7 @@
             // 
             txtIsim3.Location = new Point(115, 58);
             txtIsim3.Name = "txtIsim3";
-            txtIsim3.Size = new Size(100, 23);
+            txtIsim3.Size = new Size(100, 27);
             txtIsim3.TabIndex = 4;
             // 
             // label8
@@ -289,7 +293,7 @@
             label8.AutoSize = true;
             label8.Location = new Point(6, 61);
             label8.Name = "label8";
-            label8.Size = new Size(29, 15);
+            label8.Size = new Size(39, 20);
             label8.TabIndex = 4;
             label8.Text = "İsim";
             // 
@@ -297,14 +301,14 @@
             // 
             txtTitle3.Location = new Point(115, 96);
             txtTitle3.Name = "txtTitle3";
-            txtTitle3.Size = new Size(100, 23);
+            txtTitle3.Size = new Size(100, 27);
             txtTitle3.TabIndex = 5;
             // 
             // btn_temizle3
             // 
-            btn_temizle3.Location = new Point(126, 138);
+            btn_temizle3.Location = new Point(114, 135);
             btn_temizle3.Name = "btn_temizle3";
-            btn_temizle3.Size = new Size(75, 23);
+            btn_temizle3.Size = new Size(101, 39);
             btn_temizle3.TabIndex = 6;
             btn_temizle3.Text = "TEMİZLE";
             btn_temizle3.UseVisualStyleBackColor = true;
@@ -316,6 +320,7 @@
             groupBox5.Controls.Add(label10);
             groupBox5.Controls.Add(txtTitle2);
             groupBox5.Controls.Add(btn_temizle2);
+            groupBox5.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
             groupBox5.Location = new Point(441, 545);
             groupBox5.Name = "groupBox5";
             groupBox5.Size = new Size(341, 177);
@@ -328,7 +333,7 @@
             label9.AutoSize = true;
             label9.Location = new Point(6, 99);
             label9.Name = "label9";
-            label9.Size = new Size(29, 15);
+            label9.Size = new Size(40, 20);
             label9.TabIndex = 5;
             label9.Text = "Title";
             // 
@@ -336,7 +341,7 @@
             // 
             txtIsim2.Location = new Point(115, 58);
             txtIsim2.Name = "txtIsim2";
-            txtIsim2.Size = new Size(100, 23);
+            txtIsim2.Size = new Size(100, 27);
             txtIsim2.TabIndex = 4;
             // 
             // label10
@@ -344,7 +349,7 @@
             label10.AutoSize = true;
             label10.Location = new Point(6, 61);
             label10.Name = "label10";
-            label10.Size = new Size(29, 15);
+            label10.Size = new Size(39, 20);
             label10.TabIndex = 4;
             label10.Text = "İsim";
             // 
@@ -352,14 +357,14 @@
             // 
             txtTitle2.Location = new Point(115, 96);
             txtTitle2.Name = "txtTitle2";
-            txtTitle2.Size = new Size(100, 23);
+            txtTitle2.Size = new Size(100, 27);
             txtTitle2.TabIndex = 5;
             // 
             // btn_temizle2
             // 
-            btn_temizle2.Location = new Point(126, 138);
+            btn_temizle2.Location = new Point(126, 135);
             btn_temizle2.Name = "btn_temizle2";
-            btn_temizle2.Size = new Size(75, 23);
+            btn_temizle2.Size = new Size(89, 36);
             btn_temizle2.TabIndex = 6;
             btn_temizle2.Text = "TEMİZLE";
             btn_temizle2.UseVisualStyleBackColor = true;
@@ -367,9 +372,9 @@
             // btnIsimlikleriVer
             // 
             btnIsimlikleriVer.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnIsimlikleriVer.Location = new Point(679, 772);
+            btnIsimlikleriVer.Location = new Point(511, 740);
             btnIsimlikleriVer.Name = "btnIsimlikleriVer";
-            btnIsimlikleriVer.Size = new Size(233, 50);
+            btnIsimlikleriVer.Size = new Size(507, 93);
             btnIsimlikleriVer.TabIndex = 8;
             btnIsimlikleriVer.Text = "İsimlikleri Ver";
             btnIsimlikleriVer.UseVisualStyleBackColor = true;
@@ -378,7 +383,7 @@
             // btnTumunuTemizle
             // 
             btnTumunuTemizle.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnTumunuTemizle.Location = new Point(934, 772);
+            btnTumunuTemizle.Location = new Point(1085, 761);
             btnTumunuTemizle.Name = "btnTumunuTemizle";
             btnTumunuTemizle.Size = new Size(170, 50);
             btnTumunuTemizle.TabIndex = 9;
@@ -388,7 +393,7 @@
             // 
             // btn_kelebek_al
             // 
-            btn_kelebek_al.Location = new Point(432, 750);
+            btn_kelebek_al.Location = new Point(876, 324);
             btn_kelebek_al.Name = "btn_kelebek_al";
             btn_kelebek_al.Size = new Size(163, 72);
             btn_kelebek_al.TabIndex = 10;

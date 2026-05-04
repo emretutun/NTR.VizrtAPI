@@ -1034,18 +1034,32 @@ namespace NTR.Application.Services
             if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
             var trCulture = new System.Globalization.CultureInfo("tr-TR");
-            string isimBuyuk = (isim ?? "").ToUpper(trCulture);
-            string titleBuyuk = (title ?? "").ToUpper(trCulture);
+            string isimBuyuk = (isim ?? "").Trim().ToUpper(trCulture);
+            string titleBuyuk = (title ?? "").Trim().ToUpper(trCulture);
 
-            // Boşluklu metinler için çift tırnak ( \" ) ekliyoruz
-            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET \"{isimBuyuk}\"");
-            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET \"{titleBuyuk}\"");
+            if (string.IsNullOrWhiteSpace(isimBuyuk))
+            {
+                // İSİM BOŞ: Eski kodundaki VisibilityBL(false) mantığı
+                // İlgili kişinin arka planını gizle ve yazıları sil
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$isimlik_bg_{index}*ACTIVE SET 0");
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET ");
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET ");
 
-            // Maxsize ve Animasyon tetikleme (Opsiyonel, sahne yapına göre)
-            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*FUNCTION*Maxsize*initialize SET");
-            engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIMLIK_{index}*FUNCTION*ControlObject*in SET");
+                return CommandResult.Ok($"Kelebek {index}. kişi ekrandan gizlendi.");
+            }
+            else
+            {
+                // İSİM DOLU: Arka planı göster ve yazıları bas
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$isimlik_bg_{index}*ACTIVE SET 1");
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET {isimBuyuk}");
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET {titleBuyuk}");
 
-            return CommandResult.Ok($"Kelebek isim gönderildi: {isimBuyuk}");
+                // Maxsize ve Animasyon tetikleme
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*FUNCTION*Maxsize*initialize SET");
+                engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIMLIK_{index}*FUNCTION*ControlObject*in SET");
+
+                return CommandResult.Ok($"Kelebek isim gönderildi: {isimBuyuk}");
+            }
         }
 
         public CommandResult KelebekKapat(VizrtEngineType engineType)
