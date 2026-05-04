@@ -12,6 +12,7 @@ namespace NTR.RejiClient
         private List<Haber> _haberler = new();
         private List<KjItem> _kjListesi = new();
         private bool _isConnected = false;
+        private bool _isKjIslemiDevamEdiyor = false;
 
         // Renk sabitleri
         private readonly Color OnAirColor = Color.Red;
@@ -347,31 +348,73 @@ namespace NTR.RejiClient
 
         private async void btnTekliKJ_Click(object sender, EventArgs e)
         {
+            if (_isKjIslemiDevamEdiyor) return;
+
             var (text1, _) = GetKjMetin();
             if (string.IsNullOrWhiteSpace(text1)) { ShowError("Metin boş olamaz!"); return; }
-            var result = await _api.KjVerAsync(_engineType, 0, text1, "", GetAktifRozet());
-            HandleResult(result, btnTekliKJ, btnKJAl);
-            SelectNextKj();
+
+            try
+            {
+                _isKjIslemiDevamEdiyor = true;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = false;
+
+                var result = await _api.KjVerAsync(_engineType, 0, text1, "", GetAktifRozet());
+                HandleResult(result, btnTekliKJ, btnKJAl);
+                SelectNextKj();
+            }
+            finally
+            {
+                _isKjIslemiDevamEdiyor = false;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = true;
+            }
         }
 
         private async void btnCiftliKJ_Click(object sender, EventArgs e)
         {
+            if (_isKjIslemiDevamEdiyor) return;
+
             var (text1, text2) = GetKjMetin();
             if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
             { ShowError("Çift satır KJ için her iki metin de dolu olmalı!"); return; }
-            var result = await _api.KjVerAsync(_engineType, 1, text1, text2, GetAktifRozet());
-            HandleResult(result, btnCiftliKJ, btnKJAl);
-            SelectNextKj();
+
+            try
+            {
+                _isKjIslemiDevamEdiyor = true;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = false;
+
+                var result = await _api.KjVerAsync(_engineType, 1, text1, text2, GetAktifRozet());
+                HandleResult(result, btnCiftliKJ, btnKJAl);
+                SelectNextKj();
+            }
+            finally
+            {
+                _isKjIslemiDevamEdiyor = false;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = true;
+            }
         }
 
         private async void btnUzunKJ_Click(object sender, EventArgs e)
         {
+            if (_isKjIslemiDevamEdiyor) return;
+
             var (text1, text2) = GetKjMetin();
             if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2))
             { ShowError("Uzun KJ için her iki metin de dolu olmalı!"); return; }
-            var result = await _api.KjVerAsync(_engineType, 2, text1, text2, GetAktifRozet());
-            HandleResult(result, btnUzunKJ, btnKJAl);
-            SelectNextKj();
+
+            try
+            {
+                _isKjIslemiDevamEdiyor = true;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = false;
+
+                var result = await _api.KjVerAsync(_engineType, 2, text1, text2, GetAktifRozet());
+                HandleResult(result, btnUzunKJ, btnKJAl);
+                SelectNextKj();
+            }
+            finally
+            {
+                _isKjIslemiDevamEdiyor = false;
+                btnTekliKJ.Enabled = btnCiftliKJ.Enabled = btnUzunKJ.Enabled = true;
+            }
         }
 
         private async void btnKJAl_Click(object sender, EventArgs e)
@@ -400,20 +443,114 @@ namespace NTR.RejiClient
 
         private async void btnYerVer_Click(object sender, EventArgs e)
         {
-            var (text1, _) = GetKjMetin();
-            if (string.IsNullOrWhiteSpace(text1)) { ShowError("Yer metni boş olamaz!"); return; }
-            var result = await _api.YerVerAsync(_engineType, text1);
-            HandleResult(result, btnYerVer, btnYerAl);
-            SelectNextKj();
+            if (!_isConnected) return;
+            if (_isKjIslemiDevamEdiyor) return;
+
+            // 1. Listeden "Yer" veya "Lokasyon" içeren KJ'yi otomatik bul (Null check ekledik)
+            var yerKj = _kjListesi.FirstOrDefault(x =>
+                x.Aciklama != null &&
+                x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            string text1 = "";
+
+            // 2. Metni belirle
+            if (yerKj != null)
+            {
+                text1 = yerKj.Text1 ?? "";
+            }
+            else
+            {
+                // Eğer akışta "Yer" bulunamazsa (editör unutmuş olabilir), 
+                // operatörün manuel girdiği veya grid'den seçtiği metni al (Güvenlik Önlemi)
+                var (manuelText1, _) = GetKjMetin();
+                text1 = manuelText1;
+            }
+
+            if (string.IsNullOrWhiteSpace(text1))
+            {
+                ShowError("Yer metni boş olamaz! Listede 'Yer' bulunamadı veya elle metin girilmedi.");
+                return;
+            }
+
+            try
+            {
+                _isKjIslemiDevamEdiyor = true;
+                btnYerVer.Enabled = false;
+
+                // 3. API'ye gönder
+                var result = await _api.YerVerAsync(_engineType, text1);
+
+                if (result.Success)
+                {
+                    // 4. Buton renklerini güncelle
+                    btnYerVer.BackColor = OnAirColor;
+                    btnYerVer.ForeColor = Color.White;
+                    btnYerAl.BackColor = AlColor;
+
+                    // 5. Grid üzerinde boyama yap ve seçimi atlat (Eğer listeden otomatik bulunduysa)
+                    if (yerKj != null)
+                    {
+                        int yerIndex = _kjListesi.IndexOf(yerKj);
+                        if (yerIndex >= 0)
+                        {
+                            dgvKjListesi.Rows[yerIndex].DefaultCellStyle.BackColor = OnAirColor;
+                            dgvKjListesi.Rows[yerIndex].DefaultCellStyle.ForeColor = Color.White;
+                            dgvKjListesi.Rows[yerIndex].DefaultCellStyle.SelectionBackColor = Color.DarkRed;
+
+                            // Seçimi bir sonrakine atlat
+                            if (yerIndex < dgvKjListesi.Rows.Count - 1)
+                            {
+                                dgvKjListesi.ClearSelection();
+                                dgvKjListesi.Rows[yerIndex + 1].Selected = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Manuel gönderildiyse standart bir sonraki KJ'ye geç
+                        SelectNextKj();
+                    }
+                }
+                else
+                {
+                    ShowError($"Hata: {result.Message}");
+                }
+            }
+            finally
+            {
+                _isKjIslemiDevamEdiyor = false;
+                btnYerVer.Enabled = true;
+            }
         }
 
         private async void btnYerAl_Click(object sender, EventArgs e)
         {
+            if (!_isConnected) return;
+
             var result = await _api.YerAlAsync(_engineType);
+
             if (result.Success)
             {
+                // Butonları standart haline getir
                 btnYerVer.BackColor = OffAirColor;
+                btnYerVer.ForeColor = Color.Black;
                 btnYerAl.BackColor = AlColor;
+
+                // Grid üzerindeki Kırmızı satırın boyasını temizle
+                var yerKj = _kjListesi.FirstOrDefault(x =>
+                    x.Aciklama != null &&
+                    x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (yerKj != null)
+                {
+                    int yerIndex = _kjListesi.IndexOf(yerKj);
+                    if (yerIndex >= 0)
+                    {
+                        dgvKjListesi.Rows[yerIndex].DefaultCellStyle.BackColor = Color.Empty;
+                        dgvKjListesi.Rows[yerIndex].DefaultCellStyle.ForeColor = Color.Empty;
+                        dgvKjListesi.Rows[yerIndex].DefaultCellStyle.SelectionBackColor = Color.Empty;
+                    }
+                }
             }
         }
 
