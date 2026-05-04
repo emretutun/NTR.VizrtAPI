@@ -9,20 +9,23 @@ Vizrt canlı yayın sistemi entegrasyonu için C# tabanlı ASP.NET Core API küt
 - [Proje Yapısı](#-proje-yapısı-mimarisi)
 - [Dosya Dizini](#-dosya-dizini)
 - [DTO Nedir?](#-dto-nedir-data-transfer-object)
-- [Veri Akışı](#-bir-isteg-akışı)
+- [Veri Akışı](#-bir-isteğin-akışı)
 - [API Endpoint'leri](#-api-endpointleri)
   - [Engine Kontrol](#-engine-kontrol)
   - [KJ (Kurucak Jayapım) Yönetimi](#-kj-kurucak-jayapım-yönetimi)
+  - [Roll (Akan Yazı)](#-roll-akan-yazı)
+  - [Kelebek (Çoklu Konuk)](#-kelebek-çoklu-konuk)
   - [Rundown Yönetimi](#-rundown-yönetimi)
   - [Haber Yönetimi](#-haber-yönetimi)
   - [KJ Listesi](#-kj-listesi)
   - [Sistem Logları](#-sistem-logları)
+- [NTR.RejiClient — Masaüstü Arayüzü](#-ntrrejiclient--masaüstü-arayüzü)
 
 ---
 
 ## 🏗️ Proje Yapısı (Mimarisi)
 
-Bu proje **Clean Architecture** prensiplerine göre 4 ana katmandan oluşmaktadır:
+Bu proje **Clean Architecture** prensiplerine göre 5 ana katmandan oluşmaktadır:
 
 ### **1️⃣ NTR.API (Presentation Layer - Sunum Katmanı)**
 
@@ -88,6 +91,13 @@ NTR.Application/
 │   │   ├── Text1 (Üst yazı)
 │   │   ├── Text2 (Alt yazı)
 │   │   └── Rozet (Opsiyonel: AzSonra, SonDakika, vb.)
+│   ├── RollRequestDto.cs          ← YENİ
+│   │   ├── TesekkurYazisi
+│   │   ├── Satirlar (List<RollSatirDto> — Baslik + Yazi, maks. 24)
+│   │   └── Sponsorlar (List<string> — dosya adları, maks. 5)
+│   ├── KelebekRequestDto.cs       ← YENİ
+│   │   ├── KelebekSahneDto (SahneYolu)
+│   │   └── KelebekIsimDto (Index, Isim, Title)
 │   ├── ConnectRequestDto.cs
 │   ├── EngineStatusDto.cs
 │   ├── IsimlikRequestDto.cs
@@ -113,7 +123,10 @@ public class VizrtService : IVizrtService
     // State tracking dictionaries (UI'da hangi grafik açık?)
     private readonly Dictionary<VizrtEngineType, bool> _kjTekOnAir;
     private readonly Dictionary<VizrtEngineType, bool> _kjCiftOnAir;
+    private readonly Dictionary<VizrtEngineType, bool> _kjUzunOnAir;
     private readonly Dictionary<VizrtEngineType, bool> _yerOnAir;
+    private readonly Dictionary<VizrtEngineType, bool> _canliOnAir;
+    private readonly Dictionary<VizrtEngineType, bool> _whatsappOnAir;
     private readonly Dictionary<VizrtEngineType, RozetType?> _aktifRozet;
     
     // Vizrt engine client'leri
@@ -263,7 +276,7 @@ emretutun/NTR.VizrtAPI/
 ├─── NTR.API/                          (HTTP API Endpoint'leri)
 │    ├─ Controllers/
 │    │  ├─ EngineController.cs         → /api/engine (bağlantı, status)
-│    │  ├─ KjController.cs             → /api/kj (grafik yönetimi)
+│    │  ├─ KjController.cs             → /api/kj (grafik yönetimi, roll, kelebek)
 │    │  ├─ RundownController.cs        → /api/rundown (yayın planı)
 │    │  ├─ HaberController.cs          → /api/haber (haberler)
 │    │  ├─ KjListController.cs         → /api/kjlist (KJ listesi)
@@ -277,6 +290,8 @@ emretutun/NTR.VizrtAPI/
 ├─── NTR.Application/                  (İş Mantığı)
 │    ├─ DTOs/                          ← Veri Transfer Nesneleri
 │    │  ├─ KjRequestDto.cs             → POST /api/kj/{engine}/ver
+│    │  ├─ RollRequestDto.cs           → POST /api/kj/{engine}/roll/ver  ← YENİ
+│    │  ├─ KelebekRequestDto.cs        → POST /api/kj/{engine}/kelebek/* ← YENİ
 │    │  ├─ ConnectRequestDto.cs        → POST /api/engine/{engine}/connect
 │    │  ├─ EngineStatusDto.cs          → GET /api/engine/status
 │    │  ├─ IsimlikRequestDto.cs
@@ -285,7 +300,7 @@ emretutun/NTR.VizrtAPI/
 │    │  └─ YerRequestDto.cs
 │    │
 │    ├─ Services/                      ← İş Mantığı (Business Logic)
-│    │  ├─ VizrtService.cs             → Vizrt motor komutları (900+ satır)
+│    │  ├─ VizrtService.cs             → Vizrt motor komutları (1000+ satır)
 │    │  ├─ KjService.cs                → KJ veritabanı işlemleri
 │    │  ├─ HaberService.cs             → Haber işlemleri
 │    │  ├─ RundownService.cs           → Rundown işlemleri
@@ -306,31 +321,49 @@ emretutun/NTR.VizrtAPI/
 │    │  └─ CommandResult.cs            → İşlem sonucu
 │    │
 │    ├─ Enums/                         ← Sabit Değerler
-│    │  ├─ VizrtEngineType.cs          → Reji, Grafik1, Grafik2
-│    │  ├─ KjType.cs                   → Tekli, Çiftli, Uzun
-│    │  └─ RozetType.cs                → AzSonra, SonDakika, vb.
+│    │  └─ VizrtEngineType.cs          → VizrtEngineType, KjType, RozetType
 │    │
 │    └─ Interfaces/                    ← Hizmet Kontratları
 │       ├─ IVizrtService.cs            → Vizrt service arayüzü
-│       └─ IVizrtEngine.cs             → Engine client arayüzü
+│       ├─ IVizrtEngine.cs             → Engine client arayüzü
+│       ├─ IRundownRepository.cs
+│       ├─ IHaberRepository.cs
+│       ├─ IKjRepository.cs
+│       └─ ILogRepository.cs
 │
 ├─── NTR.Infrastructure/               (Veri Erişimi ve Bağlantılar)
-│    ├─ Tcp/                           ← TCP Bağlantısı
-│    │  └─ TcpClient yönetimi
+│    ├─ Tcp/
+│    │  └─ VizrtTcpConnection.cs       → Raw TCP soket yönetimi
 │    │
-│    ├─ Vizrt/                         ← Vizrt Motor İstemcisi
+│    ├─ Vizrt/
 │    │  └─ VizrtEngineClient.cs        → TCP üzerinden komut gönderme
 │    │
-│    └─ Repository/                    ← Veritabanı Sorguları
-│       └─ Rundown, Haber, KjItem CRUD işlemleri
+│    └─ Repository/
+│       ├─ JsonRundownRepository.cs
+│       ├─ JsonHaberRepository.cs
+│       ├─ JsonKjRepository.cs
+│       └─ TxtLogRepository.cs
 │
-├─── NTR.RejiClient/                   (Windows Forms UI - Reji Kumandası)
-│    ├─ MainForm.cs                    → Reji arayüzü
+├─── NTR.RejiClient/                   (Windows Forms UI - Reji Kumandası) ← YENİ
+│    ├─ MainForm.cs                    → Ana reji arayüzü
 │    ├─ MainForm.Designer.cs
 │    ├─ MainForm.resx
 │    ├─ Program.cs
-│    ├─ Models/                        → Lokal modeller
-│    └─ Services/                      → API çağrı servisleri
+│    ├─ Forms/
+│    │  ├─ RollForm.cs                 → Roll (akan yazı) editörü
+│    │  ├─ RollForm.Designer.cs
+│    │  ├─ Kelebek.cs                  → Kelebek (çoklu konuk) editörü
+│    │  └─ Kelebek.Designer.cs
+│    ├─ Models/
+│    │  ├─ ApiResult.cs
+│    │  ├─ EngineStatus.cs
+│    │  ├─ Haber.cs
+│    │  ├─ KjItem.cs
+│    │  ├─ Rundown.cs
+│    │  └─ RollRequestDto.cs
+│    └─ Services/
+│       ├─ ApiService.cs               → Tüm API çağrıları (HttpClient)
+│       └─ AppConfig.cs                → config.json okuma/yazma
 │
 ├─── NTR.VizrtAPI.slnx                 ← Solution dosyası (tüm projeleri içerir)
 ├─── README.md                         ← Bu dosya
@@ -927,9 +960,75 @@ POST https://localhost:7043/api/kj/{engineType}/rozet/al?rozetType=SonDakika
 ```http
 POST https://localhost:7043/api/kj/{engineType}/rozet/tumunu-al
 ```
-## 🦋 Kelebek (Multi-Guest) Yönetimi
 
-Kelebek sistemi; çoklu konukların isim ve unvan bilgilerinin aynı anda ekranda gösterilmesini sağlar. Sahne, arka katmana (Back Layer) yüklenir ve her konuk dinamik olarak yönetilir.
+---
+
+## 📜 Roll (Akan Yazı)
+
+Jenerik veya katkıda bulunanlar listesi olarak akan yazı grafiği. Teşekkür metni, isim-unvan satırları ve sponsor logolarını destekler.
+
+> **Not:** Roll başlamadan önce `TakeAll()` otomatik çağrılır, ekrandaki tüm grafikler temizlenir (1 saniyelik bekleme süresi dahil).
+
+---
+
+### Roll Yayına Ver
+```http
+POST https://localhost:7043/api/kj/{engineType}/roll/ver
+Content-Type: application/json
+
+{
+  "tesekkurYazisi": "SHOW TV HABER MERKEZİNE TEŞEKKÜR EDERİZ",
+  "satirlar": [
+    { "baslik": "YAPIMCI", "yazi": "UFUK COŞKUN" },
+    { "baslik": "EDİTÖR", "yazi": "ESRA DOĞAN" },
+    { "baslik": "MUHABİR", "yazi": "EMEL KILIÇ" }
+  ],
+  "sponsorlar": ["logo1.jpg", "logo2.png"]
+}
+```
+
+**Parametreler:**
+- `tesekkurYazisi`: Teşekkür metni. Çok satırlı olabilir.
+- `satirlar`: Maks. **24 satır**. Her satırda `baslik` (unvan) ve `yazi` (isim) alanı.
+- `sponsorlar`: Maks. **5 adet** sponsor görseli. Sadece dosya adı yazılır (ör. `logo.jpg`). Görseller `D:\SHOWTV_REJI_DATA\ROLL\` klasöründen okunur.
+
+**Örnek (Tekli konuk, sponsorsuz):**
+```http
+POST https://localhost:7043/api/kj/Reji/roll/ver
+Content-Type: application/json
+
+{
+  "tesekkurYazisi": "TEŞEKKÜR EDERİZ",
+  "satirlar": [
+    { "baslik": "YAPIMCI", "yazi": "ALİ KURT" }
+  ],
+  "sponsorlar": []
+}
+```
+
+---
+
+### Roll Al (Durdur)
+```http
+POST https://localhost:7043/api/kj/{engineType}/roll/al
+```
+**Açıklama:** Akan yazıyı durdurur ve ekrandan kaldırır.
+
+**Örnek:**
+```http
+POST https://localhost:7043/api/kj/Reji/roll/al
+```
+
+---
+
+## 🦋 Kelebek (Çoklu Konuk)
+
+Kelebek sistemi; aynı anda 1–5 konuğun isim ve unvan bilgisini ekranda gösterir. Sahne **Back Layer**'a yüklenir ve her konuk bağımsız olarak yönetilebilir.
+
+**Kullanım sırası:**
+1. Önce sahneyi yükle (`kelebek/sahne`)
+2. İstediğin konukları gönder (`kelebek/isim`)
+3. Bitince kapat (`kelebek/kapat`)
 
 ---
 
@@ -937,17 +1036,81 @@ Kelebek sistemi; çoklu konukların isim ve unvan bilgilerinin aynı anda ekrand
 ```http
 POST https://localhost:7043/api/kj/{engineType}/kelebek/sahne
 Content-Type: application/json
+
+{
+  "sahneYolu": "SHOW_TV_2025/REJI/YENI_SAYFA/KELEBEK/3KISI"
+}
 ```
-### Kelebek İsim yükleme
+**Açıklama:** Belirtilen sahneyi Back Layer'a yükler ve aktive eder. Sahne adı `KelebekGorselleri/` klasöründeki PNG dosyasının adıyla eşleşmelidir.
+
+**Örnek:**
+```http
+POST https://localhost:7043/api/kj/Reji/kelebek/sahne
+Content-Type: application/json
+
+{
+  "sahneYolu": "SHOW_TV_2025/REJI/YENI_SAYFA/KELEBEK/5KISI"
+}
 ```
+
+---
+
+### Kelebek İsim Gönder
+```http
 POST https://localhost:7043/api/kj/{engineType}/kelebek/isim
 Content-Type: application/json
+
+{
+  "index": 1,
+  "isim": "Ahmet Yılmaz",
+  "title": "Ekonomist"
+}
 ```
-### Kelebek Sahne Kapat
+
+**Parametreler:**
+- `index`: Konuk sırası. `1` ile `5` arasında bir değer.
+- `isim`: Kişinin adı. Boş bırakılırsa o konuk ekrandan **gizlenir**.
+- `title`: Unvan veya görev tanımı.
+
+> **Not:** İsim ve title otomatik olarak Türkçe büyük harfe (`ToUpper`) dönüştürülür.
+
+**Örnek — 3 konuk göndermek:**
+```http
+POST https://localhost:7043/api/kj/Reji/kelebek/isim
+Content-Type: application/json
+{ "index": 1, "isim": "Ahmet Yılmaz", "title": "Ekonomist" }
+
+POST https://localhost:7043/api/kj/Reji/kelebek/isim
+Content-Type: application/json
+{ "index": 2, "isim": "Ayşe Kaya", "title": "Siyaset Uzmanı" }
+
+POST https://localhost:7043/api/kj/Reji/kelebek/isim
+Content-Type: application/json
+{ "index": 3, "isim": "Mehmet Demir", "title": "Gazeteci" }
 ```
-POST https://localhost:7043/api/kj/{engineType}/kelebek/kapat
+
+**Örnek — Bir konuğu ekrandan gizlemek:**
+```http
+POST https://localhost:7043/api/kj/Reji/kelebek/isim
+Content-Type: application/json
+{ "index": 2, "isim": "", "title": "" }
+```
+
 ---
+
+### Kelebek Kapat
+```http
+POST https://localhost:7043/api/kj/{engineType}/kelebek/kapat
 ```
+**Açıklama:** Back Layer'ı tamamen kapatır, sahneyi bellekten boşaltır.
+
+**Örnek:**
+```http
+POST https://localhost:7043/api/kj/Reji/kelebek/kapat
+```
+
+---
+
 ## 📋 Rundown Yönetimi
 
 Yayın planı (Rundown) yönetimi - gün bazlı yayın takvimi.
@@ -1247,8 +1410,83 @@ DELETE https://localhost:7043/api/log/temizle
 - **Framework:** ASP.NET Core (.NET 8)
 - **Dil:** C#
 - **API Stili:** RESTful
-- **Veritabanı:** Lokal JSON/veritabanı (yapılandırılabilir)
-- **İletişim:** TCP/IP (Vizrt motor ile)
+- **Veritabanı:** Lokal JSON dosya tabanlı (yapılandırılabilir)
+- **İletişim:** TCP/IP (Vizrt motor ile, port 6100)
+
+---
+
+## 🖥️ NTR.RejiClient — Masaüstü Arayüzü
+
+Windows Forms (.NET 8) tabanlı masaüstü reji kumanda uygulaması. API üzerinden tüm Vizrt komutlarını göndermek için grafiksel arayüz sağlar.
+
+### Yapılandırma (config.json)
+
+Uygulama, çalıştığı dizinde `config.json` dosyasını arar. Bulunamazsa varsayılan değerlerle oluşturur.
+
+```json
+{
+  "ApiBaseUrl": "https://localhost:7043",
+  "ApiKey": "ntr-vizrt-2026-secret-key",
+  "EngineType": "Reji",
+  "LastIp": "127.0.0.1",
+  "LastPort": 6100,
+  "ScenePath": "SHOW_TV_2025/REJI/YENI_SAYFA/KJ/KJ_TUM_V9"
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `ApiBaseUrl` | NTR.API sunucusunun adresi |
+| `ApiKey` | `X-Api-Key` header değeri |
+| `EngineType` | Varsayılan motor: `Reji`, `Grafik1` veya `Grafik2` |
+| `LastIp` | Son bağlanılan IP (otomatik kaydedilir) |
+| `ScenePath` | Varsayılan Vizrt scene yolu |
+
+---
+
+### Ana Ekran (MainForm)
+
+- **Bağlan:** IP adresi girip Vizrt motoruna TCP bağlantısı kurar.
+- **Kanal Seçici:** Show TV / HaberTurk kanal bazlı rundown filtreleme.
+- **Tarih Seçici:** Seçilen güne ait rundownları listeler.
+- **Haberler:** Seçili rundowndaki haberleri gösterir.
+- **KJ Listesi:** Seçili habere ait KJ öğelerini listeler; üzerine çift tıklayınca KJ otomatik olarak yayına verilir.
+- **KJ Kontrol Butonları:** Tekli / Çiftli / Uzun KJ gönder, KJ Al, Tümünü Al.
+- **Yer / Sosyal Medya / WhatsApp / Canlı:** İlgili grafikleri aç/kapat.
+- **İsimlik / Sunucu İsimliği / Muhabir-Kameraman:** İsimlik grafikleri.
+- **Roll Butonu:** RollForm penceresini açar.
+- **Kelebek Butonu:** Kelebek formunu açar.
+
+---
+
+### RollForm — Akan Yazı Editörü
+
+Roll içeriğini düzenlemek için grid tabanlı editör. Veriler `roll_data.txt` dosyasına otomatik kaydedilir, bir sonraki açılışta yüklenir.
+
+**Kullanım:**
+
+1. Teşekkür metnini `Teşekkür Yazısı` kutusuna yaz.
+2. Grid'e `Başlık` (unvan) ve `Yazı` (isim) kolonlarını doldur. Maks. 24 satır.
+3. Sponsor görseli eklemek için sol listeden seçip `Ekle` butonuna bas. Maks. 5 görsel.
+4. `ROLL VER` butonuna bas.
+5. Roll'u durdurmak için `ROLL AL` butonuna bas.
+
+> Sponsor görselleri `D:\SHOWTV_REJI_DATA\ROLL\` klasöründen okunur.
+
+---
+
+### Kelebek Formu — Çoklu Konuk İsimliği
+
+1–5 konuğun aynı anda isimliğini yönetmek için form.
+
+**Kullanım:**
+
+1. Sol listeden sahne seçildiğinde sağda PNG önizlemesi görünür.
+2. `Sahne Geç` butonuna basıldığında sahne Back Layer'a yüklenir.
+3. İsim ve unvan kutularını doldur, `İsimlikeri Ver` butonuna bas — dolu olan her konuk için animasyon otomatik tetiklenir.
+4. Tek bir konuğu kaldırmak için o satırdaki `Temizle` butonuna bas.
+5. Tüm konukları kaldırmak için `Tümünü Temizle` butonuna bas.
+6. Sahneyi tamamen kapatmak için `Kelebek Al` butonuna bas.
 
 ---
 
