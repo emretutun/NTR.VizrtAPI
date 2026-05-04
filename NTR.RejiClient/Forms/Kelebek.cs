@@ -143,7 +143,7 @@ namespace NTR.RejiClient.Forms
         {
             if (lst_kelebek.SelectedItem == null) return;
 
-            string secilenAd = lst_kelebek.SelectedItem.ToString();
+            string secilenAd = lst_kelebek.SelectedItem.ToString()!;
             string gorselYolu = Path.Combine(_dataFolder, secilenAd + ".png");
 
             pnl_kelebek_image.BackgroundImage?.Dispose();
