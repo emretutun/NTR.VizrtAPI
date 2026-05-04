@@ -26,7 +26,7 @@
                 await context.Response.WriteAsJsonAsync(new
                 {
                     success = false,
-                    message = "API Key bulunamadı. Header'a X-Api-Key ekleyin."
+                    message = "API Key bulunamadı."
                 });
                 return;
             }
