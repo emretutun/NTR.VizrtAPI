@@ -16,6 +16,7 @@ namespace NTR.RejiClient.Forms
     {
         private readonly ApiService _api;
         private readonly string _engineType;
+        private bool _isSending = false;
 
         // TXT dosya yolları
         private readonly string _rollDosyaYolu = Path.Combine(Application.StartupPath, "roll_data.txt");
@@ -94,75 +95,67 @@ namespace NTR.RejiClient.Forms
             SiraNumaralariniGuncelle();
         }
 
-        private void btnAsagiTasi_Click(object sender, EventArgs e)
-        {
-            if (dgvRoll.SelectedRows.Count == 0 || dgvRoll.SelectedRows[0].Index == dgvRoll.Rows.Count - 1) return;
-            int seciliIndex = dgvRoll.SelectedRows[0].Index;
-            DataGridViewRow satir = dgvRoll.Rows[seciliIndex];
-            dgvRoll.Rows.RemoveAt(seciliIndex);
-            dgvRoll.Rows.Insert(seciliIndex + 1, satir);
-            dgvRoll.ClearSelection();
-            dgvRoll.Rows[seciliIndex + 1].Selected = true;
-            SiraNumaralariniGuncelle();
-        }
-
         private async void btnRollVer_Click(object sender, EventArgs e)
         {
+            if (_isSending) return;
+            _isSending = true;
+
             btnRollVer.Text = "GÖNDERİLİYOR...";
             btnRollVer.Enabled = false;
 
-            // 1. Ekrandaki tüm verileri API'nin anlayacağı bir Paket (DTO) haline getiriyoruz
-            var request = new RollRequestDto
+            try
             {
-                TesekkurYazisi = txtTesekkur.Text.Trim(),
-                Satirlar = new List<RollSatirDto>(),
-                Sponsorlar = new List<string>()
-            };
-
-            // Grid'deki ilk 24 satırı alıyoruz
-            for (int i = 0; i < 24; i++)
-            {
-                if (i < dgvRoll.Rows.Count)
+                var request = new RollRequestDto
                 {
-                    request.Satirlar.Add(new RollSatirDto
+                    TesekkurYazisi = txtTesekkur.Text.Trim(),
+                    Satirlar = new List<RollSatirDto>(),
+                    Sponsorlar = new List<string>()
+                };
+
+                for (int i = 0; i < 24; i++)
+                {
+                    if (i < dgvRoll.Rows.Count)
                     {
-                        Baslik = dgvRoll.Rows[i].Cells["colUnvan"].Value?.ToString() ?? "",
-                        Yazi = dgvRoll.Rows[i].Cells["colIsim"].Value?.ToString() ?? ""
-                    });
+                        request.Satirlar.Add(new RollSatirDto
+                        {
+                            Baslik = dgvRoll.Rows[i].Cells["colUnvan"].Value?.ToString() ?? "",
+                            Yazi = dgvRoll.Rows[i].Cells["colIsim"].Value?.ToString() ?? ""
+                        });
+                    }
+                    else
+                    {
+                        request.Satirlar.Add(new RollSatirDto { Baslik = "", Yazi = "" });
+                    }
+                }
+
+                foreach (var item in lbYayinGorselleri.Items)
+                    request.Sponsorlar.Add(item.ToString());
+
+                var result = await _api.RollVerAsync(_engineType, request);
+
+                if (result.Success)
+                {
+                    btnRollVer.BackColor = Color.Red;
+                    btnRollVer.ForeColor = Color.White;
+                    btnRollVer.Text = "YAYINDA";
                 }
                 else
                 {
-                    request.Satirlar.Add(new RollSatirDto { Baslik = "", Yazi = "" });
+                    MessageBox.Show($"Roll gönderilemedi: {result.Message}");
+                    btnRollVer.Text = "ROLL VER";
                 }
             }
-
-            // Seçilen sponsorları ekliyoruz
-            foreach (var item in lbYayinGorselleri.Items)
+            finally
             {
-                request.Sponsorlar.Add(item.ToString());
+                _isSending = false;
+                btnRollVer.Enabled = true;
             }
-
-            // 2. Paketi API'ye Gönderiyoruz (EkraniTemizle, targetY hesaplama işini API yapacak)
-            var result = await _api.RollVerAsync(_engineType, request);
-
-            if (result.Success)
-            {
-                btnRollVer.BackColor = Color.Red;
-                btnRollVer.ForeColor = Color.White;
-                btnRollVer.Text = "YAYINDA";
-            }
-            else
-            {
-                MessageBox.Show($"Roll gönderilemedi: {result.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                btnRollVer.Text = "ROLL VER";
-            }
-
-            btnRollVer.Enabled = true;
         }
 
         private async void btnRollAl_Click(object sender, EventArgs e)
         {
-            // API'ye "Roll'u yayından al" diyoruz
+            if (_isSending) return;
+
             var result = await _api.RollAlAsync(_engineType);
 
             if (result.Success)
@@ -187,7 +180,7 @@ namespace NTR.RejiClient.Forms
             dgvRoll.MultiSelect = false;
             dgvRoll.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
             dgvRoll.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-            dgvRoll.EditingControlShowing += dgvRoll_EditingControlShowing;
+            dgvRoll.EditingControlShowing += dgvRoll_EditingControlShowing!;
 
             dgvRoll.DefaultCellStyle.SelectionBackColor = Color.LimeGreen;
             dgvRoll.DefaultCellStyle.SelectionForeColor = Color.Black;

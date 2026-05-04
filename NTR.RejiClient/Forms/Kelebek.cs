@@ -15,6 +15,10 @@ namespace NTR.RejiClient.Forms
         private readonly ApiService _apiService;
         private readonly AppConfig _config;
         private readonly string _dataFolder;
+        private readonly SemaphoreSlim _vizLock = new SemaphoreSlim(1, 1);
+        private bool _isSending = false;
+        private bool _sahneYuklendi = false;
+
 
         public Kelebek(ApiService apiService, AppConfig config)
         {
@@ -54,7 +58,15 @@ namespace NTR.RejiClient.Forms
         // Vizrt tarafına boş veri göndererek o kişiyi ekrandan alan yardımcı fonksiyon
         private async Task VizrtKisiTemizle(int index)
         {
-            await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, "", "");
+            await _vizLock.WaitAsync();
+            try
+            {
+                await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, "", "");
+            }
+            finally
+            {
+                _vizLock.Release();
+            }
         }
 
         // --- BUTON 1: SADECE SAHNEYİ YÜKLER (BACK LAYER LOAD) ---
@@ -62,7 +74,7 @@ namespace NTR.RejiClient.Forms
         {
             if (lst_kelebek.SelectedItem == null) return;
 
-            string secilenKelebek = lst_kelebek.SelectedItem.ToString();
+            string secilenKelebek = lst_kelebek.SelectedItem.ToString()!;
 
             // Senin verdiğin dizin yapısına göre tam yolu oluşturuyoruz
             string tamSahneYolu = $"SHOW_TV_2025/REJI/YENI_SAYFA/KELEBEK/{secilenKelebek}";
@@ -71,6 +83,7 @@ namespace NTR.RejiClient.Forms
 
             if (result.Success)
             {
+                _sahneYuklendi = true;
                 btnSahneGec.BackColor = Color.Yellow;
             }
         }
@@ -78,9 +91,14 @@ namespace NTR.RejiClient.Forms
         // --- BUTON 2: İSİMLERİ GÖNDERİR VE ANİMASYONLARI TETİKLER ---
         private async void btnIsimlikleriVer_Click(object sender, EventArgs e)
         {
+            if (!_sahneYuklendi)
+            {
+                MessageBox.Show("Önce sahne yüklemelisin.");
+                return;
+            }
+
             try
             {
-                // Sadece kutusu dolu olanları animasyonlu gönder, diğerlerini sadece set et
                 await KisiVeAnimasyonGonder(1, txtIsim1.Text, txtTitle1.Text);
                 await KisiVeAnimasyonGonder(2, txtIsim2.Text, txtTitle2.Text);
                 await KisiVeAnimasyonGonder(3, txtIsim3.Text, txtTitle3.Text);
@@ -99,16 +117,23 @@ namespace NTR.RejiClient.Forms
         {
             if (string.IsNullOrWhiteSpace(isim)) return;
 
-            // 1. Veriyi Set Et (API asenkron çağrılır)
-            string formatliIsim = isim.ToUpper(new CultureInfo("tr-TR"));
-            string formatliTitle = title.ToUpper(new CultureInfo("tr-TR"));
+            await _vizLock.WaitAsync();
+            try
+            {
+                string formatliIsim = isim.ToUpper(new CultureInfo("tr-TR"));
+                string formatliTitle = title.ToUpper(new CultureInfo("tr-TR"));
 
-            await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, formatliIsim, formatliTitle);
+                await _apiService.KelebekIsimGonderAsync(_config.EngineType, index, formatliIsim, formatliTitle);
 
-            // 2. Sadece o kişiye özel animasyonu (Director) oynat
-            // Vizrt sahne yapındaki Director ismine göre: KISI1, KISI2...
-            string command = $"DIRECTOR*KISI{index} PLAY";
-            await _apiService.SendRawCommandAsync(_config.EngineType, command);
+                await Task.Delay(50); 
+
+                string command = $"DIRECTOR*KISI{index} PLAY";
+                await _apiService.SendRawCommandAsync(_config.EngineType, command);
+            }
+            finally
+            {
+                _vizLock.Release();
+            }
         }
 
         private async void btn_kelebek_al_Click(object sender, EventArgs e)
@@ -116,6 +141,8 @@ namespace NTR.RejiClient.Forms
             var result = await _apiService.KelebekKapatAsync(_config.EngineType);
             if (result.Success)
             {
+                _sahneYuklendi = false;
+
                 btnIsimlikleriVer.BackColor = Color.Empty;
                 btnSahneGec.BackColor = Color.Empty;
             }

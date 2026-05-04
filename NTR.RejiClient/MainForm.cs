@@ -400,11 +400,55 @@ namespace NTR.RejiClient
 
         private async void btnYerVer_Click(object sender, EventArgs e)
         {
-            var (text1, _) = GetKjMetin();
-            if (string.IsNullOrWhiteSpace(text1)) { ShowError("Yer metni boş olamaz!"); return; }
-            var result = await _api.YerVerAsync(_engineType, text1);
-            HandleResult(result, btnYerVer, btnYerAl);
-            SelectNextKj();
+            if (!_isConnected) return;
+
+            // 1. "Yer" olan KJ'yi bul
+            var yerKj = _kjListesi
+                .FirstOrDefault(x => x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (yerKj == null)
+            {
+                ShowError("Bu haberde 'Yer' içeren bir KJ bulunamadı!");
+                return;
+            }
+
+            string yerText = yerKj.Text1 ?? "";
+
+            if (string.IsNullOrWhiteSpace(yerText))
+            {
+                ShowError("Yer metni boş!");
+                return;
+            }
+
+            // 2. API'ye gönder
+            var result = await _api.YerVerAsync(_engineType, yerText);
+
+            if (result.Success)
+            {
+                btnYerVer.BackColor = OnAirColor;
+                btnYerVer.ForeColor = Color.White;
+                btnYerAl.BackColor = AlColor;
+
+                // 3. Grid'de highlight
+                int index = _kjListesi.IndexOf(yerKj);
+
+                if (index >= 0)
+                {
+                    dgvKjListesi.Rows[index].DefaultCellStyle.BackColor = OnAirColor;
+                    dgvKjListesi.Rows[index].DefaultCellStyle.ForeColor = Color.White;
+                }
+
+                // 4. Sonraki KJ'ye geç
+                if (index < dgvKjListesi.Rows.Count - 1)
+                {
+                    dgvKjListesi.ClearSelection();
+                    dgvKjListesi.Rows[index + 1].Selected = true;
+                }
+            }
+            else
+            {
+                ShowError(result.Message);
+            }
         }
 
         private async void btnYerAl_Click(object sender, EventArgs e)

@@ -29,13 +29,29 @@ namespace NTR.RejiClient.Services
             try
             {
                 string url = $"{_baseUrl}/{endpoint}";
+
                 StringContent content = body != null
                     ? new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
                     : new StringContent("", Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync(url, content);
                 string json = await response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<ApiResult>(json) ?? new ApiResult { Success = false, Message = "Boş yanıt" };
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new ApiResult
+                    {
+                        Success = false,
+                        Message = $"HTTP {(int)response.StatusCode} - {json}"
+                    };
+                }
+
+                return JsonConvert.DeserializeObject<ApiResult>(json)
+                       ?? new ApiResult { Success = false, Message = "Boş yanıt" };
+            }
+            catch (TaskCanceledException)
+            {
+                return new ApiResult { Success = false, Message = "Timeout (5sn geçti)" };
             }
             catch (Exception ex)
             {
