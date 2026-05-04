@@ -402,13 +402,13 @@ namespace NTR.RejiClient
         {
             if (!_isConnected) return;
 
-            // 1. "Yer" olan KJ'yi bul
+            // 1. Kullanıcının nereyi seçtiğine BAKMAKSIZIN listeden "Yer" olan KJ'yi otomatik bul
             var yerKj = _kjListesi
-                .FirstOrDefault(x => x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
+                .FirstOrDefault(x => x.Aciklama != null && x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
 
             if (yerKj == null)
             {
-                ShowError("Bu haberde 'Yer' içeren bir KJ bulunamadı!");
+                ShowError("Bu haberin KJ listesinde 'Yer' içeren bir kayıt bulunamadı!");
                 return;
             }
 
@@ -425,25 +425,21 @@ namespace NTR.RejiClient
 
             if (result.Success)
             {
+                // 3. Buton durumlarını Yayında (Kırmızı) olarak ayarla
                 btnYerVer.BackColor = OnAirColor;
                 btnYerVer.ForeColor = Color.White;
                 btnYerAl.BackColor = AlColor;
 
-                // 3. Grid'de highlight
+                // 4. Grid'de SADECE Yer satırını bul ve kırmızıya boya
                 int index = _kjListesi.IndexOf(yerKj);
-
                 if (index >= 0)
                 {
                     dgvKjListesi.Rows[index].DefaultCellStyle.BackColor = OnAirColor;
                     dgvKjListesi.Rows[index].DefaultCellStyle.ForeColor = Color.White;
+                    dgvKjListesi.Rows[index].DefaultCellStyle.SelectionBackColor = Color.DarkRed; // O satır seçilirse bile kırmızı kalsın
                 }
 
-                // 4. Sonraki KJ'ye geç
-                if (index < dgvKjListesi.Rows.Count - 1)
-                {
-                    dgvKjListesi.ClearSelection();
-                    dgvKjListesi.Rows[index + 1].Selected = true;
-                }
+                // NOT: Senin bulunduğun satırı (örneğin 3. satır Haber KJ) ASLA değiştirmiyoruz.
             }
             else
             {
@@ -453,11 +449,27 @@ namespace NTR.RejiClient
 
         private async void btnYerAl_Click(object sender, EventArgs e)
         {
+            if (!_isConnected) return;
+
             var result = await _api.YerAlAsync(_engineType);
+
             if (result.Success)
             {
+                // Butonları eski haline getir
                 btnYerVer.BackColor = OffAirColor;
+                btnYerVer.ForeColor = Color.Black;
                 btnYerAl.BackColor = AlColor;
+
+                // Grid üzerindeki Kırmızı satırın boyasını temizle (ALındığını belirtmek için)
+                var yerKj = _kjListesi.FirstOrDefault(x => x.Aciklama != null && x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
+                int index = yerKj != null ? _kjListesi.IndexOf(yerKj) : -1;
+
+                if (index >= 0)
+                {
+                    dgvKjListesi.Rows[index].DefaultCellStyle.BackColor = Color.Empty;
+                    dgvKjListesi.Rows[index].DefaultCellStyle.ForeColor = Color.Empty;
+                    dgvKjListesi.Rows[index].DefaultCellStyle.SelectionBackColor = Color.Empty;
+                }
             }
         }
 

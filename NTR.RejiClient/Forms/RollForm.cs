@@ -301,6 +301,17 @@ YÖNETMEN|AYŞENUR YILDIRIM";
             for (int i = 0; i < dgvRoll.Rows.Count; i++)
                 dgvRoll.Rows[i].Cells["colSira"].Value = (i + 1).ToString();
         }
+        private void btnAsagiTasi_Click(object sender, EventArgs e)
+        {
+            if (dgvRoll.SelectedRows.Count == 0 || dgvRoll.SelectedRows[0].Index == dgvRoll.Rows.Count - 1) return;
+            int seciliIndex = dgvRoll.SelectedRows[0].Index;
+            DataGridViewRow satir = dgvRoll.Rows[seciliIndex];
+            dgvRoll.Rows.RemoveAt(seciliIndex);
+            dgvRoll.Rows.Insert(seciliIndex + 1, satir);
+            dgvRoll.ClearSelection();
+            dgvRoll.Rows[seciliIndex + 1].Selected = true;
+            SiraNumaralariniGuncelle();
+        }
 
     }
 }
