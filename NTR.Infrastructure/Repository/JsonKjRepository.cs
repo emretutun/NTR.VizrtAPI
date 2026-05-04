@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NTR.Core.Entities;
 using NTR.Core.Interfaces;
@@ -13,6 +14,7 @@ namespace NTR.Infrastructure.Repositories
     {
         private readonly string _filePath;
         private readonly JsonSerializerOptions _options;
+        private static readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         public JsonKjRepository(string filePath)
         {
@@ -41,60 +43,91 @@ namespace NTR.Infrastructure.Repositories
 
         public async Task<List<KjItem>> GetAllAsync()
         {
-            return await ReadAsync();
+            await _lock.WaitAsync();
+            try { return await ReadAsync(); }
+            finally { _lock.Release(); }
         }
 
         public async Task<List<KjItem>> GetByHaberIdAsync(int haberId)
         {
-            var kjItems = await ReadAsync();
-            return kjItems.Where(k => k.HaberId == haberId).OrderBy(k => k.Sira).ToList();
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                return kjItems.Where(k => k.HaberId == haberId).OrderBy(k => k.Sira).ToList();
+            }
+            finally { _lock.Release(); }
         }
 
         public async Task<KjItem?> GetByIdAsync(int id)
         {
-            var kjItems = await ReadAsync();
-            return kjItems.FirstOrDefault(k => k.Id == id);
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                return kjItems.FirstOrDefault(k => k.Id == id);
+            }
+            finally { _lock.Release(); }
         }
 
         public async Task<KjItem> AddAsync(KjItem kjItem)
         {
-            var kjItems = await ReadAsync();
-            kjItem.Id = kjItems.Count > 0 ? kjItems.Max(k => k.Id) + 1 : 1;
-            kjItem.OlusturmaTarihi = DateTime.Now;
-            kjItems.Add(kjItem);
-            await WriteAsync(kjItems);
-            return kjItem;
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                kjItem.Id = kjItems.Count > 0 ? kjItems.Max(k => k.Id) + 1 : 1;
+                kjItem.OlusturmaTarihi = DateTime.Now;
+                kjItems.Add(kjItem);
+                await WriteAsync(kjItems);
+                return kjItem;
+            }
+            finally { _lock.Release(); }
         }
 
         public async Task<KjItem?> UpdateAsync(KjItem kjItem)
         {
-            var kjItems = await ReadAsync();
-            int index = kjItems.FindIndex(k => k.Id == kjItem.Id);
-            if (index == -1) return null;
-            kjItems[index] = kjItem;
-            await WriteAsync(kjItems);
-            return kjItem;
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                int index = kjItems.FindIndex(k => k.Id == kjItem.Id);
+                if (index == -1) return null;
+                kjItems[index] = kjItem;
+                await WriteAsync(kjItems);
+                return kjItem;
+            }
+            finally { _lock.Release(); }
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var kjItems = await ReadAsync();
-            int removed = kjItems.RemoveAll(k => k.Id == id);
-            if (removed == 0) return false;
-            await WriteAsync(kjItems);
-            return true;
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                int removed = kjItems.RemoveAll(k => k.Id == id);
+                if (removed == 0) return false;
+                await WriteAsync(kjItems);
+                return true;
+            }
+            finally { _lock.Release(); }
         }
 
         public async Task<bool> SwapOrderAsync(int id1, int id2)
         {
-            var kjItems = await ReadAsync();
-            var item1 = kjItems.FirstOrDefault(k => k.Id == id1);
-            var item2 = kjItems.FirstOrDefault(k => k.Id == id2);
-            if (item1 == null || item2 == null) return false;
-
-            (item1.Sira, item2.Sira) = (item2.Sira, item1.Sira);
-            await WriteAsync(kjItems);
-            return true;
+            await _lock.WaitAsync();
+            try
+            {
+                var kjItems = await ReadAsync();
+                var item1 = kjItems.FirstOrDefault(k => k.Id == id1);
+                var item2 = kjItems.FirstOrDefault(k => k.Id == id2);
+                if (item1 == null || item2 == null) return false;
+                (item1.Sira, item2.Sira) = (item2.Sira, item1.Sira);
+                await WriteAsync(kjItems);
+                return true;
+            }
+            finally { _lock.Release(); }
         }
     }
 }

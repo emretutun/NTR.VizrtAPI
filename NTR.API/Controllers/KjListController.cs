@@ -5,7 +5,7 @@ using NTR.Core.Entities;
 namespace NTR.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/kjlist")]
     public class KjListController : ControllerBase
     {
         private readonly KjService _kjService;
@@ -37,9 +37,13 @@ namespace NTR.API.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // Route açıkça belirtildi - PUT /api/kjlist ile çakışma yok
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] KjItem kjItem)
         {
+            if (kjItem == null || kjItem.Id <= 0)
+                return BadRequest(new { Success = false, Message = "Geçersiz KJ verisi." });
+
             var result = await _kjService.UpdateAsync(kjItem);
             return result.Success ? Ok(result) : BadRequest(result);
         }

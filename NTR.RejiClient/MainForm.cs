@@ -400,76 +400,20 @@ namespace NTR.RejiClient
 
         private async void btnYerVer_Click(object sender, EventArgs e)
         {
-            if (!_isConnected) return;
-
-            // 1. Kullanıcının nereyi seçtiğine BAKMAKSIZIN listeden "Yer" olan KJ'yi otomatik bul
-            var yerKj = _kjListesi
-                .FirstOrDefault(x => x.Aciklama != null && x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
-
-            if (yerKj == null)
-            {
-                ShowError("Bu haberin KJ listesinde 'Yer' içeren bir kayıt bulunamadı!");
-                return;
-            }
-
-            string yerText = yerKj.Text1 ?? "";
-
-            if (string.IsNullOrWhiteSpace(yerText))
-            {
-                ShowError("Yer metni boş!");
-                return;
-            }
-
-            // 2. API'ye gönder
-            var result = await _api.YerVerAsync(_engineType, yerText);
-
-            if (result.Success)
-            {
-                // 3. Buton durumlarını Yayında (Kırmızı) olarak ayarla
-                btnYerVer.BackColor = OnAirColor;
-                btnYerVer.ForeColor = Color.White;
-                btnYerAl.BackColor = AlColor;
-
-                // 4. Grid'de SADECE Yer satırını bul ve kırmızıya boya
-                int index = _kjListesi.IndexOf(yerKj);
-                if (index >= 0)
-                {
-                    dgvKjListesi.Rows[index].DefaultCellStyle.BackColor = OnAirColor;
-                    dgvKjListesi.Rows[index].DefaultCellStyle.ForeColor = Color.White;
-                    dgvKjListesi.Rows[index].DefaultCellStyle.SelectionBackColor = Color.DarkRed; // O satır seçilirse bile kırmızı kalsın
-                }
-
-                // NOT: Senin bulunduğun satırı (örneğin 3. satır Haber KJ) ASLA değiştirmiyoruz.
-            }
-            else
-            {
-                ShowError(result.Message);
-            }
+            var (text1, _) = GetKjMetin();
+            if (string.IsNullOrWhiteSpace(text1)) { ShowError("Yer metni boş olamaz!"); return; }
+            var result = await _api.YerVerAsync(_engineType, text1);
+            HandleResult(result, btnYerVer, btnYerAl);
+            SelectNextKj();
         }
 
         private async void btnYerAl_Click(object sender, EventArgs e)
         {
-            if (!_isConnected) return;
-
             var result = await _api.YerAlAsync(_engineType);
-
             if (result.Success)
             {
-                // Butonları eski haline getir
                 btnYerVer.BackColor = OffAirColor;
-                btnYerVer.ForeColor = Color.Black;
                 btnYerAl.BackColor = AlColor;
-
-                // Grid üzerindeki Kırmızı satırın boyasını temizle (ALındığını belirtmek için)
-                var yerKj = _kjListesi.FirstOrDefault(x => x.Aciklama != null && x.Aciklama.IndexOf("Yer", StringComparison.OrdinalIgnoreCase) >= 0);
-                int index = yerKj != null ? _kjListesi.IndexOf(yerKj) : -1;
-
-                if (index >= 0)
-                {
-                    dgvKjListesi.Rows[index].DefaultCellStyle.BackColor = Color.Empty;
-                    dgvKjListesi.Rows[index].DefaultCellStyle.ForeColor = Color.Empty;
-                    dgvKjListesi.Rows[index].DefaultCellStyle.SelectionBackColor = Color.Empty;
-                }
             }
         }
 
@@ -658,25 +602,19 @@ namespace NTR.RejiClient
                 return;
             }
 
-            // Seçili satırın indeksini ve orjinal KJ modelini al
             int index = dgvKjListesi.SelectedRows[0].Index;
             var kj = _kjListesi[index];
 
-            // TextBox'taki GÜNCEL veriyi modele aktar
-            kj.Text1 = txtKjMetin1.Text;
-            kj.Text2 = txtKjMetin2.Text;
+            kj.Text1 = txtKjMetin1.Text.Trim();
+            kj.Text2 = txtKjMetin2.Text.Trim();
 
-            // API'ye güncelleme isteği at
+            // KjItem nesnesinin tamamını gönderiyoruz - alan adı uyumsuzluğunu önlemek için
             var result = await _api.KjGuncelleAsync(kj.Id, kj.HaberId, kj.Aciklama, kj.Type, kj.Text1, kj.Text2);
 
             if (result.Success)
             {
-                // Başarılıysa, API'den tüm listeyi baştan çekmek yerine (hız için) 
-                // doğrudan ekrandaki tabloyu güncelliyoruz!
                 dgvKjListesi.Rows[index].Cells[2].Value = kj.Text1;
                 dgvKjListesi.Rows[index].Cells[3].Value = kj.Text2;
-
-                // (İsteğe bağlı) ShowInfo("KJ güncellendi"); // Sürekli pop-up çıkmasın diye bunu silebilirsin.
             }
             else
             {
@@ -692,7 +630,6 @@ namespace NTR.RejiClient
             var result = await _api.KjSilAsync(_kjListesi[index].Id);
             if (result.Success)
             {
-                ShowInfo("KJ silindi.");
                 if (dgvHaberler.SelectedRows.Count > 0)
                     await LoadKjListesiAsync(_haberler[dgvHaberler.SelectedRows[0].Index].Id);
             }

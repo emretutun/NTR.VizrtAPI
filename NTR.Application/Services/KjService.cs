@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using NTR.Core.Entities;
 using NTR.Core.Interfaces;
@@ -53,11 +52,11 @@ namespace NTR.Application.Services
         {
             try
             {
-                var existing = await _kjRepository.GetByIdAsync(kjItem.Id);
-                if (existing == null)
+                // Önce varlık kontrolü yapıyoruz ama dosyayı LOCK altında tek seferde güncelliyoruz
+                var updated = await _kjRepository.UpdateAsync(kjItem);
+                if (updated == null)
                     return CommandResult.Fail($"KJ bulunamadı. Id: {kjItem.Id}");
 
-                var updated = await _kjRepository.UpdateAsync(kjItem);
                 return CommandResult.Ok("KJ güncellendi.", updated);
             }
             catch (Exception ex)
@@ -70,11 +69,12 @@ namespace NTR.Application.Services
         {
             try
             {
-                var existing = await _kjRepository.GetByIdAsync(id);
-                if (existing == null)
+                // GetByIdAsync + DeleteAsync yerine doğrudan DeleteAsync çağırıyoruz
+                // Repository zaten LOCK altında atomik olarak kontrol edip siliyor
+                bool deleted = await _kjRepository.DeleteAsync(id);
+                if (!deleted)
                     return CommandResult.Fail($"KJ bulunamadı. Id: {id}");
 
-                await _kjRepository.DeleteAsync(id);
                 return CommandResult.Ok("KJ silindi.");
             }
             catch (Exception ex)
