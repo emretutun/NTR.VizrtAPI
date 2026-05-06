@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NTR.Application.DTOs;
 using NTR.Core.Enums;
 using NTR.Core.Interfaces;
 using System.Linq;
-
+using System.Threading.Tasks;
 
 namespace NTR.API.Controllers
 {
@@ -20,30 +19,30 @@ namespace NTR.API.Controllers
         }
 
         [HttpPost("{engineType}/ver")]
-        public IActionResult Ver(VizrtEngineType engineType, [FromBody] KjRequestDto dto)
+        public async Task<IActionResult> Ver(VizrtEngineType engineType, [FromBody] KjRequestDto dto)
         {
-            var result = _vizrtService.SendKj(engineType, dto.Type, dto.Text1, dto.Text2, dto.Rozet);
+            var result = await _vizrtService.SendKjAsync(engineType, dto.Type, dto.Text1, dto.Text2, dto.Rozet);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         [HttpPost("{engineType}/al")]
-        public IActionResult Al(VizrtEngineType engineType)
+        public async Task<IActionResult> Al(VizrtEngineType engineType)
         {
-            var result = _vizrtService.TakeKj(engineType);
+            var result = await _vizrtService.TakeKjAsync(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         [HttpPost("{engineType}/tumunu-al")]
-        public IActionResult TumunuAl(VizrtEngineType engineType)
+        public async Task<IActionResult> TumunuAl(VizrtEngineType engineType)
         {
-            var result = _vizrtService.TakeAll(engineType);
+            var result = await _vizrtService.TakeAllAsync(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         [HttpPost("{engineType}/yer/ver")]
-        public IActionResult YerVer(VizrtEngineType engineType, [FromBody] YerRequestDto dto)
+        public async Task<IActionResult> YerVer(VizrtEngineType engineType, [FromBody] YerRequestDto dto)
         {
-            var result = _vizrtService.SendYer(engineType, dto.Text);
+            var result = await _vizrtService.SendYerAsync(engineType, dto.Text);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -55,9 +54,9 @@ namespace NTR.API.Controllers
         }
 
         [HttpPost("{engineType}/sosyal-medya/ver")]
-        public IActionResult SosyalMedyaVer(VizrtEngineType engineType)
+        public async Task<IActionResult> SosyalMedyaVer(VizrtEngineType engineType)
         {
-            var result = _vizrtService.SendSosyalMedya(engineType);
+            var result = await _vizrtService.SendSosyalMedyaAsync(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -83,9 +82,9 @@ namespace NTR.API.Controllers
         }
 
         [HttpPost("{engineType}/telefon-isimlik/ver")]
-        public IActionResult TelefonIsimlikVer(VizrtEngineType engineType, [FromBody] IsimlikRequestDto dto)
+        public async Task<IActionResult> TelefonIsimlikVer(VizrtEngineType engineType, [FromBody] IsimlikRequestDto dto)
         {
-            var result = _vizrtService.SendTelefonIsimlik(engineType, dto.Isim, dto.Title, dto.TelefonMu);
+            var result = await _vizrtService.SendTelefonIsimlikAsync(engineType, dto.Isim, dto.Title, dto.TelefonMu);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -160,12 +159,13 @@ namespace NTR.API.Controllers
             var result = _vizrtService.TakeAllRozet(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
         // ─── WHATSAPP ─────────────────────────────────────────────
 
         [HttpPost("{engineType}/whatsapp/ver")]
-        public IActionResult WhatsappVer(VizrtEngineType engineType)
+        public async Task<IActionResult> WhatsappVer(VizrtEngineType engineType)
         {
-            var result = _vizrtService.SendWhatsapp(engineType);
+            var result = await _vizrtService.SendWhatsappAsync(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -176,20 +176,13 @@ namespace NTR.API.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        // ─── ROLL ─────────────────────────────────────────────
+
         [HttpPost("{engineType}/roll/ver")]
-        public IActionResult RollVer(VizrtEngineType engineType, [FromBody] RollRequestDto dto)
+        public async Task<IActionResult> RollVer(VizrtEngineType engineType, [FromBody] RollRequestDto dto)
         {
-            // Clean Architecture gereği: DTO'daki satırları (Tuple) listesine çevirip Core'a yolluyoruz
             var satirlar = dto.Satirlar.Select(s => (s.Baslik, s.Yazi)).ToList();
-
-            var result = _vizrtService.SendRoll(engineType, dto.TesekkurYazisi, satirlar, dto.Sponsorlar);
-            return result.Success ? Ok(result) : BadRequest(result);
-        }
-
-        [HttpPost("{engineType}/roll-tek-metin/ver")]// Tek metinli rollere özel endpoint
-        public IActionResult RollTekMetinVer(VizrtEngineType engineType, [FromBody] RollTekMetinRequestDto dto)
-        {
-            var result = _vizrtService.SendRollTekMetin(engineType, dto.RollMetni!, dto.Sponsorlar!);
+            var result = await _vizrtService.SendRollAsync(engineType, dto.TesekkurYazisi, satirlar, dto.Sponsorlar);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -199,6 +192,14 @@ namespace NTR.API.Controllers
             var result = _vizrtService.TakeRoll(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        [HttpPost("{engineType}/roll-tek-metin/ver")]
+        public async Task<IActionResult> RollTekMetinVer(VizrtEngineType engineType, [FromBody] RollTekMetinRequestDto dto)
+        {
+            var result = await _vizrtService.SendRollTekMetinAsync(engineType, dto.RollMetni, dto.Sponsorlar);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         // ─── KELEBEK ─────────────────────────────────────────────
 
         [HttpPost("{engineType}/kelebek/sahne")]
@@ -221,9 +222,5 @@ namespace NTR.API.Controllers
             var result = _vizrtService.KelebekKapat(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
-
-
-
-
     }
 }

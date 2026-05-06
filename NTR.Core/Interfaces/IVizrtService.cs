@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using NTR.Core.Entities;
 using NTR.Core.Enums;
@@ -16,16 +14,17 @@ namespace NTR.Core.Interfaces
         VizrtEngine GetEngineStatus(VizrtEngineType engineType);
         List<VizrtEngine> GetAllEngineStatus();
 
-        // KJ
-        CommandResult SendKj(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "", RozetType? rozet = null); CommandResult TakeKj(VizrtEngineType engineType);
-        CommandResult TakeAll(VizrtEngineType engineType);
+        // KJ — Sleep içerdiği için async
+        Task<CommandResult> SendKjAsync(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "", RozetType? rozet = null);
+        Task<CommandResult> TakeKjAsync(VizrtEngineType engineType);
+        Task<CommandResult> TakeAllAsync(VizrtEngineType engineType);
 
-        // Yer
-        CommandResult SendYer(VizrtEngineType engineType, string text);
+        // Yer — Sleep içerdiği için async
+        Task<CommandResult> SendYerAsync(VizrtEngineType engineType, string text);
         CommandResult TakeYer(VizrtEngineType engineType);
 
-        // Sosyal Medya
-        CommandResult SendSosyalMedya(VizrtEngineType engineType);
+        // Sosyal Medya — Sleep içerdiği için async
+        Task<CommandResult> SendSosyalMedyaAsync(VizrtEngineType engineType);
         CommandResult TakeSosyalMedya(VizrtEngineType engineType);
 
         // Isimlik
@@ -38,8 +37,8 @@ namespace NTR.Core.Interfaces
         // Scene
         CommandResult LoadScene(VizrtEngineType engineType, string scenePath);
 
-        // Telefon İsimlik
-        CommandResult SendTelefonIsimlik(VizrtEngineType engineType, string isim, string title, bool telefonMu);
+        // Telefon İsimlik — Sleep içerdiği için async
+        Task<CommandResult> SendTelefonIsimlikAsync(VizrtEngineType engineType, string isim, string title, bool telefonMu);
         CommandResult TakeTelefonIsimlik(VizrtEngineType engineType);
 
         // Muhabir Kamera
@@ -59,22 +58,18 @@ namespace NTR.Core.Interfaces
         CommandResult TakeRozet(VizrtEngineType engineType, RozetType rozetType);
         CommandResult TakeAllRozet(VizrtEngineType engineType);
 
-        // Whatsapp
-        CommandResult SendWhatsapp(VizrtEngineType engineType);
+        // Whatsapp — Sleep içerdiği için async
+        Task<CommandResult> SendWhatsappAsync(VizrtEngineType engineType);
         CommandResult TakeWhatsapp(VizrtEngineType engineType);
 
-        // Roll
-        CommandResult SendRoll(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar);
+        // Roll — Sleep içerdiği için async
+        Task<CommandResult> SendRollAsync(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar);
         CommandResult TakeRoll(VizrtEngineType engineType);
-
-        CommandResult SendRollTekMetin(VizrtEngineType engineType, string rollMetni, List<string> sponsorlar);// Tek Metinli Roll
+        Task<CommandResult> SendRollTekMetinAsync(VizrtEngineType engineType, string rollMetni, List<string> sponsorlar);
 
         // Kelebek
         CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu);
         CommandResult KelebekIsimGonder(VizrtEngineType engineType, int index, string isim, string title);
         CommandResult KelebekKapat(VizrtEngineType engineType);
-
-
-
     }
 }
