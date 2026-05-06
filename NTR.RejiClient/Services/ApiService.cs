@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NTR.RejiClient.Models;
-using System.Text;
 
 namespace NTR.RejiClient.Services
 {
@@ -131,6 +130,33 @@ namespace NTR.RejiClient.Services
 
         public async Task<ApiResult> SendRawCommandAsync(string engineType, string command)
             => await PostAsync($"api/engine/{engineType}/raw", new { command });
+
+        // ─── HEARTBEAT (BAĞLANTI DURUMU KONTROLÜ) ────────────────
+
+
+        // ─── HEARTBEAT (BAĞLANTI DURUMU KONTROLÜ) ────────────────
+
+        public async Task<bool> MotorBagliMiAsync(string engineType)
+        {
+            try
+            {
+                string url = $"{_baseUrl}/api/kj/{engineType}/durum";
+
+                var response = await _httpClient.GetAsync(url);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string json = await response.Content.ReadAsStringAsync();
+                    var durum = JsonConvert.DeserializeObject<EngineDurum>(json);
+                    return durum != null && durum.IsConnected;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         // ─── KJ ──────────────────────────────────────────────────
 
@@ -289,5 +315,12 @@ namespace NTR.RejiClient.Services
             return await PostAsync($"api/kj/{engineType}/kelebek/kapat", null);
         }
 
+    }
+
+
+
+    public class EngineDurum
+    {
+        public bool IsConnected { get; set; }
     }
 }
