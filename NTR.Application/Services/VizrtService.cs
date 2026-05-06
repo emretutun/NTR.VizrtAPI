@@ -408,7 +408,12 @@ namespace NTR.Application.Services
             if (_yerOnAir[engineType]) { engine.Play(scene, "YER_KOSE_OUT"); _yerOnAir[engineType] = false; }
             if (_isimlikOnAir[engineType]) { engine.Play(scene, "KJ_TUM$ISIMLIK$OUT"); _isimlikOnAir[engineType] = false; }
             if (_telefonIsimOnAir[engineType]) { engine.Play(scene, "KJ_TUM$TELEFON$OUT"); engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT"); _telefonIsimOnAir[engineType] = false; }
-            if (_muhabirKameraOnAir[engineType]) { engine.Play(scene, "KJ_TUM$ISIMLIK_3$OUT"); _muhabirKameraOnAir[engineType] = false; }
+            if (_muhabirKameraOnAir[engineType])
+            {
+                string muhabirOutAnim = isCumartesi ? "KJ$MUHABIR_KAMERA$OUT" : "KJ_TUM$ISIMLIK_3$OUT";
+                engine.Play(scene, muhabirOutAnim);
+                _muhabirKameraOnAir[engineType] = false;
+            }
             if (_canliOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_OUT"); _canliOnAir[engineType] = false; }
             if (_canliYerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
 
@@ -606,24 +611,40 @@ namespace NTR.Application.Services
 
             string scene = _kjScenePath[engineType];
 
+            // 🌟 AKILLI YOL SEÇİCİ 🌟
+            bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+
             if (string.IsNullOrWhiteSpace(muhabir) && string.IsNullOrWhiteSpace(kameraman))
                 return CommandResult.Fail("Muhabir ve kameraman ikisi birden boş olamaz.");
 
+            // Dinamik Yollar (Hafta sonu projelerine ekleneceği varsayımıyla mantıklı isimler verdik)
+            string muhabirTextPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_TEXT" : "ISIMLIK_3$noname$HABER$HABER_TEXT";
+            string muhabirGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_GRUP" : "ISIMLIK_3$noname$HABER";
+
+            string kameraTextPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_TEXT" : "ISIMLIK_3$noname$KAMERA$KAMERA_TEXT";
+            string kameraGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_GRUP" : "ISIMLIK_3$noname$KAMERA";
+
+            string inAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$IN" : "KJ_TUM$ISIMLIK_3$IN";
+
+            var trCulture = new System.Globalization.CultureInfo("tr-TR");
+
+            // Muhabir Kısmı
             if (!string.IsNullOrWhiteSpace(muhabir))
             {
-                engine.SetObjectText(scene, "ISIMLIK_3$noname$HABER$HABER_TEXT", muhabir.ToUpper());
-                engine.Visibility(scene, "ISIMLIK_3$noname$HABER", true);
+                engine.SetObjectText(scene, muhabirTextPath, muhabir.ToUpper(trCulture));
+                engine.Visibility(scene, muhabirGrupPath, true);
             }
-            else engine.Visibility(scene, "ISIMLIK_3$noname$HABER", false);
+            else engine.Visibility(scene, muhabirGrupPath, false);
 
+            // Kamera Kısmı
             if (!string.IsNullOrWhiteSpace(kameraman))
             {
-                engine.SetObjectText(scene, "ISIMLIK_3$noname$KAMERA$KAMERA_TEXT", kameraman.ToUpper());
-                engine.Visibility(scene, "ISIMLIK_3$noname$KAMERA", true);
+                engine.SetObjectText(scene, kameraTextPath, kameraman.ToUpper(trCulture));
+                engine.Visibility(scene, kameraGrupPath, true);
             }
-            else engine.Visibility(scene, "ISIMLIK_3$noname$KAMERA", false);
+            else engine.Visibility(scene, kameraGrupPath, false);
 
-            engine.Play(scene, "KJ_TUM$ISIMLIK_3$IN");
+            engine.Play(scene, inAnim);
             _muhabirKameraOnAir[engineType] = true;
             return CommandResult.Ok($"Muhabir/Kamera yayına verildi. Muhabir: {muhabir} / Kamera: {kameraman}");
         }
@@ -634,8 +655,18 @@ namespace NTR.Application.Services
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            engine.Play(_kjScenePath[engineType], "KJ_TUM$ISIMLIK_3$OUT");
-            _muhabirKameraOnAir[engineType] = false;
+            string scene = _kjScenePath[engineType];
+
+            // 🌟 AKILLI YOL SEÇİCİ 🌟
+            bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+            string outAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$OUT" : "KJ_TUM$ISIMLIK_3$OUT";
+
+            if (_muhabirKameraOnAir[engineType])
+            {
+                engine.Play(scene, outAnim);
+                _muhabirKameraOnAir[engineType] = false;
+            }
+
             return CommandResult.Ok("Muhabir/Kamera yayından alındı.");
         }
 
