@@ -202,7 +202,8 @@ public enum RozetType
     AzSonraDsf2 = 2,
     SonDakika = 3,
     OzelHaber = 4,
-    WhatsappIhbar = 5
+    WhatsappIhbar = 5,
+    SicakGelisme = 6   // YENİ: Sadece tekli KJ ile çalışan Corner (Sıcak Gelişme) rozeti
 }
 ```
 
@@ -268,6 +269,12 @@ public class VizrtEngineClient : IVizrtEngine
 
 ---
 
+### **🌟 Akıllı Sahne Yönlendirmesi (Smart Scene Routing)**
+
+API, `VizrtService.cs` içerisinde motora yüklü olan sahnenin adını (`_kjScenePath`) kontrol ederek yolları dinamik olarak değiştirir. Örneğin; eğer sahne adında `"CUMARTESI_SURPRIZI"` veya `"PAZAR"` geçiyorsa, API dışarıdan aynı isteği alsa bile Vizrt motoruna gönderdiği obje ve animasyon yollarını otomatik olarak o sahneye (Örn: `KJ$TEK_KJ$IN`) uyarlar. Eski projede ise eski yolları (`KJ_TUM$KJ_TEK$IN`) kullanmaya devam eder. Bu sayede **tek bir endpoint ile birden fazla farklı Vizrt projesi** yönetilebilir.
+
+---
+
 ## 📁 Dosya Dizini
 
 ```
@@ -291,6 +298,7 @@ emretutun/NTR.VizrtAPI/
 │    ├─ DTOs/                          ← Veri Transfer Nesneleri
 │    │  ├─ KjRequestDto.cs             → POST /api/kj/{engine}/ver
 │    │  ├─ RollRequestDto.cs           → POST /api/kj/{engine}/roll/ver  ← YENİ
+│    │  ├─ RollTekMetinRequestDto.cs   → POST /api/kj/{engine}/roll-tek-metin/ver  ← YENİ
 │    │  ├─ KelebekRequestDto.cs        → POST /api/kj/{engine}/kelebek/* ← YENİ
 │    │  ├─ ConnectRequestDto.cs        → POST /api/engine/{engine}/connect
 │    │  ├─ EngineStatusDto.cs          → GET /api/engine/status
@@ -768,6 +776,7 @@ Content-Type: application/json
 - `3`: SonDakika
 - `4`: OzelHaber
 - `5`: WhatsappIhbar
+- `6`: SicakGelisme *(Sadece `type: 0` Tekli KJ ile kullanılabilir — Corner rozeti)*
 
 ---
 
@@ -850,6 +859,8 @@ Content-Type: application/json
   "telefonMu": false
 }
 ```
+
+> **💡 Akıllı İsimlik Notu:** `isim` parametresi boş (`""`) gönderilirse, API Vizrt motorundaki mevcut metni (SetObjectText) ezmez. Sahnede sabit yazan ismi (Örn: Sabit Sunucu İsmi) koruyarak sadece IN animasyonunu tetikler.
 
 ---
 
@@ -940,7 +951,7 @@ POST https://localhost:7043/api/kj/{engineType}/canli-yer/al
 POST https://localhost:7043/api/kj/{engineType}/rozet/ver?rozetType=SonDakika
 ```
 **Query Parametreleri:**
-- `rozetType`: AzSonra, AzSonraDsf, AzSonraDsf2, SonDakika, OzelHaber, WhatsappIhbar
+- `rozetType`: AzSonra, AzSonraDsf, AzSonraDsf2, SonDakika, OzelHaber, WhatsappIhbar, SicakGelisme
 
 **Örnek:**
 ```http
@@ -1018,6 +1029,28 @@ POST https://localhost:7043/api/kj/{engineType}/roll/al
 ```http
 POST https://localhost:7043/api/kj/Reji/roll/al
 ```
+
+---
+
+### Roll Yayına Ver (Tek Metinli Yeni Sistem)
+
+Bu sistem 24 satırlık grid mantığı yerine, `\n` ile ayrılmış tek bir uzun metin bloğunu kabul eder. API, metindeki satır sayısını sayarak Vizrt Y ekseni animasyon (Position) bitiş noktasını otomatik hesaplar.
+
+```http
+POST https://localhost:7043/api/kj/{engineType}/roll-tek-metin/ver
+Content-Type: application/json
+
+{
+  "rollMetni": "MAGAZİN PROGRAMLARI GENEL KOORDİNATÖRÜ\nREŞAT BALOOĞLU\n\nEDİTÖRLER\nSELÇUK ÖZDEMİR",
+  "sponsorlar": ["logo1.jpg", "logo2.png"]
+}
+```
+
+**Parametreler:**
+- `rollMetni`: Tüm akış metni. Satır aralıkları `\n` (Enter) ile belirlenir.
+- `sponsorlar`: Maks. **5 adet** sponsor görseli. Sadece dosya adı yazılır (ör. `logo.jpg`). Görseller `D:\SHOWTV_REJI_DATA\ROLL\` klasöründen okunur.
+
+> ⚡ **Performans Notu:** Eski sistemdeki çıkış animasyonlarının birbirine girmesini engellemek için kullanılan `TakeAll` bekleme süresi, gecikmeyi önlemek adına **500ms (0.5 sn)**'ye optimize edilmiştir. Roll komutları artık anında tepki verir.
 
 ---
 
