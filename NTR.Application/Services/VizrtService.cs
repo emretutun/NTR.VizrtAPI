@@ -9,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
-using NTR.Application.DTOs;
 
 namespace NTR.Application.Services
 {
@@ -345,26 +344,45 @@ namespace NTR.Application.Services
 
         private CommandResult SendKjUzun(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1, string text2)
         {
+            // 🌟 AKILLI YOL SEÇİCİ (SAHNEYE GÖRE) 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+
+            // Çıkış yolları (Geçişler için diğer KJ'leri kapatırken doğru yolu bulmalı)
+            string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
+            string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
+
             // Farklı KJ türü açıksa kapat
             if (_kjTekOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_TEK$OUT");
+                engine.Play(scene, tekOutAnim);
                 _kjTekOnAir[engineType] = false;
                 Thread.Sleep(1500);
             }
             if (_kjCiftOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT");
+                engine.Play(scene, ciftOutAnim);
                 _kjCiftOnAir[engineType] = false;
                 Thread.Sleep(1500);
             }
 
+            // Metin ve Animasyon yolları (Uzun KJ için)
+            // Not: Cumartesi projesinde Uzun KJ tasarlanırsa isimleri buna göre verebilirsin.
+            string textUstYolu1 = isCumartesi ? "UZUN_KJ_TEXT_UST$UZUN_KJ_TEXT_UST" : "KJ_UZUN$SATIR_1$TEXT_UZUN_UST_1";
+            string textAltYolu1 = isCumartesi ? "UZUN_KJ_TEXT_ALT$UZUN_KJ_TEXT_ALT" : "KJ_UZUN$SATIR_1$TEXT_UZUN_ALT_1";
+
+            string textUstYolu2 = isCumartesi ? "UZUN_KJ_TEXT_UST$UZUN_KJ_TEXT_UST" : "KJ_UZUN$SATIR_2$TEXT_UZUN_UST_2";
+            string textAltYolu2 = isCumartesi ? "UZUN_KJ_TEXT_ALT$UZUN_KJ_TEXT_ALT" : "KJ_UZUN$SATIR_2$TEXT_UZUN_ALT_2";
+
+            string inAnimasyonu = isCumartesi ? "KJ$UZUN_KJ$IN" : "KJ_TUM$KJ_UZUN$IN";
+            string updateAnim1 = isCumartesi ? "KJ$UZUN_KJ$IN" : "KJ_TUM$KJ_UZUN$KJ_UZUN_TEXT1";
+            string updateAnim2 = isCumartesi ? "KJ$UZUN_KJ$IN" : "KJ_TUM$KJ_UZUN$KJ_UZUN_TEXT2";
+
             if (!_kjUzunOnAir[engineType])
             {
                 // İlk kez açılıyor → SATIR_1'e yaz, IN direktörünü çalıştır
-                engine.SetObjectText(scene, "KJ_UZUN$SATIR_1$TEXT_UZUN_UST_1", text1);
-                engine.SetObjectText(scene, "KJ_UZUN$SATIR_1$TEXT_UZUN_ALT_1", text2);
-                engine.Play(scene, "KJ_TUM$KJ_UZUN$IN");
+                engine.SetObjectText(scene, textUstYolu1, text1);
+                engine.SetObjectText(scene, textAltYolu1, text2);
+                engine.Play(scene, inAnimasyonu);
                 _kjUzunOnAir[engineType] = true;
                 _nextTextAnimIndex[engineType] = 2;
             }
@@ -374,20 +392,21 @@ namespace NTR.Application.Services
                 if (_nextTextAnimIndex[engineType] == 1)
                 {
                     // SATIR_1'e yaz, TEXT1 direktörünü çalıştır
-                    engine.SetObjectText(scene, "KJ_UZUN$SATIR_1$TEXT_UZUN_UST_1", text1);
-                    engine.SetObjectText(scene, "KJ_UZUN$SATIR_1$TEXT_UZUN_ALT_1", text2);
-                    engine.Play(scene, "KJ_TUM$KJ_UZUN$KJ_UZUN_TEXT1");
+                    engine.SetObjectText(scene, textUstYolu1, text1);
+                    engine.SetObjectText(scene, textAltYolu1, text2);
+                    engine.Play(scene, updateAnim1);
                     _nextTextAnimIndex[engineType] = 2;
                 }
                 else
                 {
                     // SATIR_2'ye yaz, TEXT2 direktörünü çalıştır
-                    engine.SetObjectText(scene, "KJ_UZUN$SATIR_2$TEXT_UZUN_UST_2", text1);
-                    engine.SetObjectText(scene, "KJ_UZUN$SATIR_2$TEXT_UZUN_ALT_2", text2);
-                    engine.Play(scene, "KJ_TUM$KJ_UZUN$KJ_UZUN_TEXT2");
+                    engine.SetObjectText(scene, textUstYolu2, text1);
+                    engine.SetObjectText(scene, textAltYolu2, text2);
+                    engine.Play(scene, updateAnim2);
                     _nextTextAnimIndex[engineType] = 1;
                 }
             }
+
             return CommandResult.Ok("Uzun KJ yayına verildi.");
         }
 
