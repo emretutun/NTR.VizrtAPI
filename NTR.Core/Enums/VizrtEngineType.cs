@@ -33,6 +33,8 @@ namespace NTR.Core.Enums
         AzSonraDsf2 = 2,
         SonDakika = 3,
         OzelHaber = 4,
-        WhatsappIhbar = 5
+        WhatsappIhbar = 5,
+        SicakGelisme = 6,
+
     }
 }

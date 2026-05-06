@@ -67,9 +67,14 @@ namespace NTR.Core.Interfaces
         CommandResult SendRoll(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar);
         CommandResult TakeRoll(VizrtEngineType engineType);
 
+        CommandResult SendRollTekMetin(VizrtEngineType engineType, string rollMetni, List<string> sponsorlar);// Tek Metinli Roll
+
         // Kelebek
         CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu);
         CommandResult KelebekIsimGonder(VizrtEngineType engineType, int index, string isim, string title);
         CommandResult KelebekKapat(VizrtEngineType engineType);
+
+
+
     }
 }

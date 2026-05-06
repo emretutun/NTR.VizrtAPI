@@ -186,6 +186,13 @@ namespace NTR.API.Controllers
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
+        [HttpPost("{engineType}/roll-tek-metin/ver")]// Tek metinli rollere özel endpoint
+        public IActionResult RollTekMetinVer(VizrtEngineType engineType, [FromBody] RollTekMetinRequestDto dto)
+        {
+            var result = _vizrtService.SendRollTekMetin(engineType, dto.RollMetni!, dto.Sponsorlar!);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         [HttpPost("{engineType}/roll/al")]
         public IActionResult RollAl(VizrtEngineType engineType)
         {
@@ -214,6 +221,7 @@ namespace NTR.API.Controllers
             var result = _vizrtService.KelebekKapat(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
 
 
 

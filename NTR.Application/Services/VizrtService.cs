@@ -191,14 +191,14 @@ namespace NTR.Application.Services
                 // Farklı rozet açıksa kapat
                 if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozet)
                 {
-                    engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                    engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                     _aktifRozet[engineType] = null;
                 }
 
                 // Yeni rozeti aç (zaten açık değilse)
                 if (_aktifRozet[engineType] != rozet)
                 {
-                    engine.Play(scene, GetRozetInAnim(rozet.Value));
+                    engine.Play(scene, GetRozetInAnim(engineType, rozet.Value));
                     _aktifRozet[engineType] = rozet;
                 }
             }
@@ -207,7 +207,7 @@ namespace NTR.Application.Services
                 // Rozet null → aktif rozet varsa kapat
                 if (_aktifRozet[engineType].HasValue)
                 {
-                    engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                    engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                     _aktifRozet[engineType] = null;
                 }
             }
@@ -217,25 +217,39 @@ namespace NTR.Application.Services
 
         private CommandResult SendKjTekli(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1)
         {
+            // 🌟 AKILLI YOL SEÇİCİ (SAHNEYE GÖRE) 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
+
+            // Çıkış yolları (Geçişler için)
+            string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
+            string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT"; // Cumarteside uzun yoksa eskiyi denemesi sorun yaratmaz
+
             // Farklı KJ türü açıksa kapat
             if (_kjCiftOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT");
+                engine.Play(scene, ciftOutAnim);
                 _kjCiftOnAir[engineType] = false;
-                Thread.Sleep(1500);
+                Thread.Sleep(1500); // Kapanması için 1.5 saniye bekle
             }
             if (_kjUzunOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT");
+                engine.Play(scene, uzunOutAnim);
                 _kjUzunOnAir[engineType] = false;
                 Thread.Sleep(1500);
             }
 
+            // Metin ve Animasyon yolları (Tek KJ için)
+            string textYolu1 = isCumartesi ? "TEK_KJ_TEXT$TEK_KJ_TEXT" : "KJ_TEK$SATIR_1$TEXT1";
+            string textYolu2 = isCumartesi ? "TEK_KJ_TEXT$TEK_KJ_TEXT" : "KJ_TEK$SATIR_2$TEXT2";
+            string inAnimasyonu = isCumartesi ? "KJ$TEK_KJ$IN" : "KJ_TUM$KJ_TEK$IN";
+            string updateAnim1 = isCumartesi ? "KJ$TEK_KJ$IN" : "KJ_TUM$KJ_TEK$TEXT1";
+            string updateAnim2 = isCumartesi ? "KJ$TEK_KJ$IN" : "KJ_TUM$KJ_TEK$TEXT2";
+
             if (!_kjTekOnAir[engineType])
             {
-                // İlk kez açılıyor → metni set et, IN direktörünü çalıştır
-                engine.SetObjectText(scene, "KJ_TEK$SATIR_1$TEXT1", text1);
-                engine.Play(scene, "KJ_TUM$KJ_TEK$IN");
+                // İlk kez açılıyor
+                engine.SetObjectText(scene, textYolu1, text1);
+                engine.Play(scene, inAnimasyonu);
                 _kjTekOnAir[engineType] = true;
                 _nextTextAnimIndex[engineType] = 2;
             }
@@ -244,42 +258,65 @@ namespace NTR.Application.Services
                 // Zaten açık → sadece yazı değişecek
                 if (_nextTextAnimIndex[engineType] == 1)
                 {
-                    engine.SetObjectText(scene, "KJ_TEK$SATIR_1$TEXT1", text1);
-                    engine.Play(scene, "KJ_TUM$KJ_TEK$TEXT1");
+                    engine.SetObjectText(scene, textYolu1, text1);
+                    engine.Play(scene, updateAnim1);
                     _nextTextAnimIndex[engineType] = 2;
                 }
                 else
                 {
-                    engine.SetObjectText(scene, "KJ_TEK$SATIR_2$TEXT2", text1);
-                    engine.Play(scene, "KJ_TUM$KJ_TEK$TEXT2");
+                    engine.SetObjectText(scene, textYolu2, text1);
+                    engine.Play(scene, updateAnim2);
                     _nextTextAnimIndex[engineType] = 1;
                 }
             }
             return CommandResult.Ok("Tekli KJ yayına verildi.");
         }
 
+
         private CommandResult SendKjCiftli(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1, string text2)
         {
+            // 🌟 AKILLI YOL SEÇİCİ (SAHNEYE GÖRE) 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
+
+            // Çıkış yolları (Geçişler için)
+            string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
+            string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT";
+
             // Farklı KJ türü açıksa kapat
             if (_kjTekOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_TEK$OUT");
+                engine.Play(scene, tekOutAnim);
                 _kjTekOnAir[engineType] = false;
-                Thread.Sleep(1500);
+                Thread.Sleep(1500); // Kapanması için 1.5 saniye bekle
             }
             if (_kjUzunOnAir[engineType])
             {
-                engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT");
+                engine.Play(scene, uzunOutAnim);
                 _kjUzunOnAir[engineType] = false;
                 Thread.Sleep(1500);
             }
 
+            // Metin ve Animasyon yolları (Çift KJ için)
+            string textUstYolu1 = isCumartesi ? "CIFT_KJ_TEXT_UST$CIFT_KJ_TEXT_UST" : "KJ_CIFT$SATIR_1$TEXT_UST_1";
+            string textAltYolu1 = isCumartesi ? "CIFT_KJ_TEXT_ALT$CIFT_KJ_TEXT_ALT" : "KJ_CIFT$SATIR_1$TEXT_ALT_1";
+
+            string textUstYolu2 = isCumartesi ? "CIFT_KJ_TEXT_UST$CIFT_KJ_TEXT_UST" : "KJ_CIFT$SATIR_2$TEXT_UST_2";
+            string textAltYolu2 = isCumartesi ? "CIFT_KJ_TEXT_ALT$CIFT_KJ_TEXT_ALT" : "KJ_CIFT$SATIR_2$TEXT_ALT_2";
+
+            string inAnimasyonu = isCumartesi ? "KJ$CIFT_KJ$IN" : "KJ_TUM$KJ_CIFT$IN";
+
+            string updateUstAnim1 = isCumartesi ? "KJ$CIFT_KJ$IN" : "KJ_TUM$KJ_CIFT$TEXT_UST_1";
+            string updateAltAnim1 = isCumartesi ? "" : "KJ_TUM$KJ_CIFT$TEXT_ALT_1";
+
+            string updateUstAnim2 = isCumartesi ? "KJ$CIFT_KJ$IN" : "KJ_TUM$KJ_CIFT$TEXT_UST_2";
+            string updateAltAnim2 = isCumartesi ? "" : "KJ_TUM$KJ_CIFT$TEXT_ALT_2";
+
             if (!_kjCiftOnAir[engineType])
             {
-                // İlk kez açılıyor → metni set et, IN direktörünü çalıştır
-                engine.SetObjectText(scene, "KJ_CIFT$SATIR_1$TEXT_UST_1", text1);
-                engine.SetObjectText(scene, "KJ_CIFT$SATIR_1$TEXT_ALT_1", text2);
-                engine.Play(scene, "KJ_TUM$KJ_CIFT$IN");
+                // İlk kez açılıyor
+                engine.SetObjectText(scene, textUstYolu1, text1);
+                engine.SetObjectText(scene, textAltYolu1, text2);
+                engine.Play(scene, inAnimasyonu);
                 _kjCiftOnAir[engineType] = true;
                 _nextTextAnimIndex[engineType] = 2;
             }
@@ -288,18 +325,18 @@ namespace NTR.Application.Services
                 // Zaten açık → sadece yazı değişecek
                 if (_nextTextAnimIndex[engineType] == 1)
                 {
-                    engine.SetObjectText(scene, "KJ_CIFT$SATIR_1$TEXT_UST_1", text1);
-                    engine.SetObjectText(scene, "KJ_CIFT$SATIR_1$TEXT_ALT_1", text2);
-                    engine.Play(scene, "KJ_TUM$KJ_CIFT$TEXT_UST_1");
-                    engine.Play(scene, "KJ_TUM$KJ_CIFT$TEXT_ALT_1");
+                    engine.SetObjectText(scene, textUstYolu1, text1);
+                    engine.SetObjectText(scene, textAltYolu1, text2);
+                    engine.Play(scene, updateUstAnim1);
+                    if (!string.IsNullOrEmpty(updateAltAnim1)) engine.Play(scene, updateAltAnim1);
                     _nextTextAnimIndex[engineType] = 2;
                 }
                 else
                 {
-                    engine.SetObjectText(scene, "KJ_CIFT$SATIR_2$TEXT_UST_2", text1);
-                    engine.SetObjectText(scene, "KJ_CIFT$SATIR_2$TEXT_ALT_2", text2);
-                    engine.Play(scene, "KJ_TUM$KJ_CIFT$TEXT_UST_2");
-                    engine.Play(scene, "KJ_TUM$KJ_CIFT$TEXT_ALT_2");
+                    engine.SetObjectText(scene, textUstYolu2, text1);
+                    engine.SetObjectText(scene, textAltYolu2, text2);
+                    engine.Play(scene, updateUstAnim2);
+                    if (!string.IsNullOrEmpty(updateAltAnim2)) engine.Play(scene, updateAltAnim2);
                     _nextTextAnimIndex[engineType] = 1;
                 }
             }
@@ -361,15 +398,21 @@ namespace NTR.Application.Services
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
             string scene = _kjScenePath[engineType];
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
 
-            if (_kjTekOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_TEK$OUT"); _kjTekOnAir[engineType] = false; }
-            if (_kjCiftOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT"); _kjCiftOnAir[engineType] = false; }
-            if (_kjUzunOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT"); _kjUzunOnAir[engineType] = false; }
+            // 🌟 Akıllı Çıkış Animasyonları 🌟
+            string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
+            string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
+            string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT"; // Cumartesi uzun KJ'si gelirse burayı da güncelleyeceğiz
+
+            if (_kjTekOnAir[engineType]) { engine.Play(scene, tekOutAnim); _kjTekOnAir[engineType] = false; }
+            if (_kjCiftOnAir[engineType]) { engine.Play(scene, ciftOutAnim); _kjCiftOnAir[engineType] = false; }
+            if (_kjUzunOnAir[engineType]) { engine.Play(scene, uzunOutAnim); _kjUzunOnAir[engineType] = false; }
 
             // Rozeti de kapat
             if (_aktifRozet[engineType].HasValue)
             {
-                engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                 _aktifRozet[engineType] = null;
             }
 
@@ -385,16 +428,22 @@ namespace NTR.Application.Services
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
             string scene = _kjScenePath[engineType];
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
+
+            // 🌟 Akıllı Çıkış Animasyonları 🌟
+            string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
+            string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
+            string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT";
 
             // KJ bantları
-            if (_kjTekOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_TEK$OUT"); _kjTekOnAir[engineType] = false; }
-            if (_kjCiftOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_CIFT$OUT"); _kjCiftOnAir[engineType] = false; }
-            if (_kjUzunOnAir[engineType]) { engine.Play(scene, "KJ_TUM$KJ_UZUN$OUT"); _kjUzunOnAir[engineType] = false; }
+            if (_kjTekOnAir[engineType]) { engine.Play(scene, tekOutAnim); _kjTekOnAir[engineType] = false; }
+            if (_kjCiftOnAir[engineType]) { engine.Play(scene, ciftOutAnim); _kjCiftOnAir[engineType] = false; }
+            if (_kjUzunOnAir[engineType]) { engine.Play(scene, uzunOutAnim); _kjUzunOnAir[engineType] = false; }
 
             // Rozetler
             if (_aktifRozet[engineType].HasValue)
             {
-                engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                 _aktifRozet[engineType] = null;
             }
 
@@ -457,12 +506,11 @@ namespace NTR.Application.Services
             _nextTextAnimIndex[engineType] = 1;
 
             // Stage sıfırla
-            Thread.Sleep(2000);
+            Thread.Sleep(1000);
             engine.StageToStart("RENDERER*MAIN_LAYER");
             _log.Log("KJ", "Tüm grafikler yayından alındı.", engineType.ToString());
 
             return CommandResult.Ok("Tüm grafikler yayından alındı.");
-
         }
 
         // ─── YER ─────────────────────────────────────────────────
@@ -543,6 +591,8 @@ namespace NTR.Application.Services
 
         // ─── ISİMLİK ─────────────────────────────────────────────
 
+        // ─── ISİMLİK ─────────────────────────────────────────────
+
         public CommandResult SendIsimlik(VizrtEngineType engineType, string isim)
         {
             var engine = GetEngine(engineType);
@@ -550,10 +600,26 @@ namespace NTR.Application.Services
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
             string scene = _kjScenePath[engineType];
-            engine.SetObjectText(scene, "ISIMLIK$isim", isim);
-            engine.Play(scene, "ISIMLIK$IN");
+
+            // 🌟 AKILLI YOL SEÇİCİ 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+
+            // Metin ve Animasyon yolları
+            string textPath = isCumartesi ? "ISIMLIK$ISIMLIK$SUNUCU_ISIM" : "ISIMLIK$isim";
+            string inAnim = isCumartesi ? "KJ$ISIMLIK$IN" : "ISIMLIK$IN";
+
+            // 🌟 EĞER İSİM BOŞ GELİRSE, SAHNEDEKİ SABİT İSMİ BOZMAMAK İÇİN SET ETME 🌟
+            if (!string.IsNullOrWhiteSpace(isim))
+            {
+                engine.SetObjectText(scene, textPath, isim.ToUpper(new System.Globalization.CultureInfo("tr-TR")));
+            }
+
+            // Sadece animasyonu oynat
+            engine.Play(scene, inAnim);
+
             _isimlikOnAir[engineType] = true;
-            _log.Log("İsimlik", "İsimlik yayına verildi.", $"{engineType} | {isim}");
+            _log.Log("İsimlik", "İsimlik yayına verildi.", $"{engineType} | İsim: {(string.IsNullOrWhiteSpace(isim) ? "Sahnede Sabit" : isim)}");
+
             return CommandResult.Ok("İsimlik yayına verildi.");
         }
 
@@ -563,11 +629,18 @@ namespace NTR.Application.Services
             if (!engine.IsConnected)
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
+            string scene = _kjScenePath[engineType];
+
+            // 🌟 AKILLI YOL SEÇİCİ 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+            string outAnim = isCumartesi ? "KJ$ISIMLIK$OUT" : "ISIMLIK$OUT";
+
             if (_isimlikOnAir[engineType])
             {
-                engine.Play(_kjScenePath[engineType], "ISIMLIK$OUT");
+                engine.Play(scene, outAnim);
                 _isimlikOnAir[engineType] = false;
             }
+
             return CommandResult.Ok("İsimlik yayından alındı.");
         }
 
@@ -778,8 +851,23 @@ namespace NTR.Application.Services
         }
         // ─── ROZETLER ────────────────────────────────────────────
 
-        private string GetRozetInAnim(RozetType rozetType)
+        private string GetRozetInAnim(VizrtEngineType engineType, RozetType rozetType)
         {
+            string scene = _kjScenePath[engineType];
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+
+            if (isCumartesi)
+            {
+                return rozetType switch
+                {
+                    RozetType.AzSonra => "KJ$AZ_SONRA$IN",
+                    RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$IN",
+                    RozetType.SicakGelisme => "KJ$CORNER$IN",
+                    _ => ""
+                };
+            }
+
+            // Eski (Yeni Sayfa) Projesi İçin[cite: 1]
             return rozetType switch
             {
                 RozetType.AzSonra => "KJ_TUM$KJ_AZ_SONRA$IN",
@@ -788,12 +876,28 @@ namespace NTR.Application.Services
                 RozetType.SonDakika => "KJ_TUM$KJ_SON_DAKIKA$IN",
                 RozetType.OzelHaber => "KJ_TUM$OZEL_HABER$IN",
                 RozetType.WhatsappIhbar => "KJ_TUM$KJ_WHATSAPP_IHBAR$IN",
+                RozetType.SicakGelisme => "",
                 _ => ""
             };
         }
 
-        private string GetRozetOutAnim(RozetType rozetType)
+        private string GetRozetOutAnim(VizrtEngineType engineType, RozetType rozetType)
         {
+            string scene = _kjScenePath[engineType];
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+
+            if (isCumartesi)
+            {
+                return rozetType switch
+                {
+                    RozetType.AzSonra => "KJ$AZ_SONRA$OUT",
+                    RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$OUT",
+                    RozetType.SicakGelisme => "KJ$CORNER$OUT",
+                    _ => ""
+                };
+            }
+
+            // Eski (Yeni Sayfa) Projesi İçin[cite: 1]
             return rozetType switch
             {
                 RozetType.AzSonra => "KJ_TUM$KJ_AZ_SONRA$OUT",
@@ -802,6 +906,7 @@ namespace NTR.Application.Services
                 RozetType.SonDakika => "KJ_TUM$KJ_SON_DAKIKA$OUT",
                 RozetType.OzelHaber => "KJ_TUM$OZEL_HABER$OUT",
                 RozetType.WhatsappIhbar => "KJ_TUM$KJ_WHATSAPP_IHBAR$OUT",
+                RozetType.SicakGelisme => "",
                 _ => ""
             };
         }
@@ -818,7 +923,7 @@ namespace NTR.Application.Services
             // Farklı bir rozet açıksa kapat
             if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozetType)
             {
-                string outAnim = GetRozetOutAnim(_aktifRozet[engineType]!.Value);
+                string outAnim = GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value);
                 engine.Play(scene, outAnim);
                 _aktifRozet[engineType] = null;
             }
@@ -834,7 +939,7 @@ namespace NTR.Application.Services
                 _sosyalMedyaOnAir[engineType] = false;
             }
 
-            string inAnim = GetRozetInAnim(rozetType);
+            string inAnim = GetRozetInAnim(engineType, rozetType);
             engine.Play(scene, inAnim);
             _aktifRozet[engineType] = rozetType;
 
@@ -851,7 +956,7 @@ namespace NTR.Application.Services
 
             if (_aktifRozet[engineType] == rozetType)
             {
-                engine.Play(scene, GetRozetOutAnim(rozetType));
+                engine.Play(scene, GetRozetOutAnim(engineType, rozetType));
                 _aktifRozet[engineType] = null;
             }
 
@@ -868,7 +973,7 @@ namespace NTR.Application.Services
 
             if (_aktifRozet[engineType].HasValue)
             {
-                engine.Play(scene, GetRozetOutAnim(_aktifRozet[engineType]!.Value));
+                engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                 _aktifRozet[engineType] = null;
             }
 
@@ -1005,10 +1110,69 @@ namespace NTR.Application.Services
                 return CommandResult.Fail($"{engineType} bağlı değil.");
 
             string scene = _kjScenePath[engineType];
-            engine.Play(scene, "KJ_TUM$ROLL$OUT");
+
+            // 🌟 AKILLI YOL SEÇİCİ 🌟
+            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+            string outAnim = isCumartesi ? "KJ$ROLL$OUT" : "KJ_TUM$ROLL$OUT";
+
+            engine.Play(scene, outAnim);
 
             _log.Log("Roll", "Roll yayından alındı.", engineType.ToString());
             return CommandResult.Ok("Roll yayından alındı.");
+        }
+
+        public CommandResult SendRollTekMetin(VizrtEngineType engineType, string rollMetni, List<string> sponsorlar)
+        {
+            var engine = GetEngine(engineType);
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+            string scene = _kjScenePath[engineType];
+
+            // 0. EKRANI TEMİZLE VE BEKLE
+            TakeAll(engineType);
+
+            // 1. METNİ GÖNDER (Büyük harfe çevirerek)
+            var trCulture = new System.Globalization.CultureInfo("tr-TR");
+            string gonderilecekMetin = (rollMetni ?? "").ToUpper(trCulture);
+
+            engine.SetObjectText(scene, "ROLL_TEXT", gonderilecekMetin);
+
+            // 2. SPONSOR/REKLAM LOGOLARINI GÖNDER (Eski mantığın aynısı)
+            string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
+            for (int k = 1; k <= 5; k++)
+            {
+                if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                {
+                    string resimAdi = sponsorlar[k - 1];
+                    string tamResimYolu = klasorYolu + resimAdi;
+
+                    engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {tamResimYolu}");
+                    engine.Visibility(scene, $"reklam_image_{k}", true);
+                }
+                else
+                {
+                    engine.Visibility(scene, $"reklam_image_{k}", false);
+                }
+            }
+
+            // 3. DİNAMİK Y EKSENİ (BİTİŞ MESAFESİ) HESAPLAMA
+            // Metindeki enter (\n) sayısını bulup ona göre yüksekliği ayarlıyoruz
+            int satirSayisi = gonderilecekMetin.Split('\n').Length;
+            int reklamSatirDegeri = (sponsorlar?.Count ?? 0) * 2;
+            int toplamSanalSatir = satirSayisi + reklamSatirDegeri;
+            if (toplamSanalSatir == 0) toplamSanalSatir = 1;
+
+            double targetY = 490.0 + ((toplamSanalSatir - 12) * 48.0);
+            string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
+
+            string keyframePosCmd = $"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0";
+            engine.Send(keyframePosCmd);
+
+            // 4. ANİMASYONU BAŞLAT
+            engine.Play(scene, "KJ$ROLL$IN");
+
+            _log.Log("Roll", "Roll Tek Metin yayına verildi.", $"Satır: {satirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
+            return CommandResult.Ok("Roll Tek Metin yayına verildi.");
         }
 
         // ─── KELEBEK ─────────────────────────────────────────────
@@ -1075,5 +1239,6 @@ namespace NTR.Application.Services
             _log.Log("Kelebek", "Kelebek kapatıldı.", engineType.ToString());
             return CommandResult.Ok("Kelebek kapatıldı.");
         }
+        
     }
 }
