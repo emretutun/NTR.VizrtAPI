@@ -4,4 +4,5 @@
   <Project Path="NTR.Core/NTR.Core.csproj" />
   <Project Path="NTR.Infrastructure/NTR.Infrastructure.csproj" />
   <Project Path="NTR.RejiClient/NTR.RejiClient.csproj" Id="69da26eb-c5a6-4f81-bbaf-d39c8114fe04" />
+  <Project Path="NTR.StressTests/NTR.StressTests.csproj" Id="cc677477-253e-48f7-be50-a40d8edc00a4" />
 </Solution>
