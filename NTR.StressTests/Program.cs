@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 // Ngrok adresin ve API anahtarın tanımlandı
 const string ApiBaseUrl = "https://localhost:7043";
 const string ApiKey = "ntr-vizrt-2026-secret-key";
-const int ToplamIstekSayisi = 50;
+const int ToplamIstekSayisi = 1000;
 
 Console.WriteLine("==================================================");
 Console.WriteLine(" NTR VIZRT API - STRES VE YÜK TESTİ BAŞLIYOR...");
