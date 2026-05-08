@@ -11,9 +11,29 @@ using System.Threading.Tasks;
 
 namespace NTR.Application.Services
 {
+    /// <summary>
+    /// DEĞİŞİKLİKLER:
+    ///
+    /// ── Öncelik 1 (Thread-Safety) ──────────────────────────────────────────
+    ///   - Her VizrtEngineType için bağımsız SemaphoreSlim(1,1) eklendi.
+    ///   - Tüm state okuyan/yazan public metotlar ilgili engine'in semaphore'unu alır.
+    ///   - async metotlar: await semaphore.WaitAsync() + finally Release() deseni.
+    ///   - sync metotlar: semaphore.Wait() + finally Release() deseni.
+    ///   - İki rejisör aynı engine'e eş zamanlı komut gönderirse biri sırada bekler,
+    ///     state bozulması olmaz.
+    ///
+    /// ── Öncelik 2 (Task.Delay → PlayAndWaitAsync) ─────────────────────────
+    ///   - VizrtEngineClient.PlayAndWaitAsync(scene, anim, fallbackMs) kullanıldı.
+    ///   - Motor ACK döndürürse fallback bekleme atlanır.
+    ///   - Motor ACK döndürmezse (Vizrt bazı DIRECTOR START komutlarına yanıt vermez)
+    ///     fallbackMs kadar beklenir — davranış eskiyle aynı ama altyapı hazır.
+    ///   - Tüm Task.Delay çağrıları PlayAndWaitAsync ile değiştirildi.
+    ///   - IVizrtEngine.Play hâlâ fire-and-forget; sadece geçiş/out animasyonlarda
+    ///     PlayAndWaitAsync kullanılır.
+    /// </summary>
     public class VizrtService : IVizrtService
     {
-        private readonly Dictionary<VizrtEngineType, IVizrtEngine> _engines;
+        private readonly Dictionary<VizrtEngineType, VizrtEngineClient> _engines;
         private readonly Dictionary<VizrtEngineType, bool> _kjTekOnAir;
         private readonly Dictionary<VizrtEngineType, bool> _kjCiftOnAir;
         private readonly Dictionary<VizrtEngineType, bool> _kjUzunOnAir;
@@ -31,39 +51,56 @@ namespace NTR.Application.Services
         private readonly Dictionary<VizrtEngineType, bool> _whatsappOnAir;
         private readonly LogService _log;
 
+        // ── Öncelik 1: Per-engine mutex ────────────────────────────────────
+        // SemaphoreSlim(1,1) = async-uyumlu mutex. Her engine bağımsız kilitlenir;
+        // Reji'ye gelen istek Grafik1'i bloke etmez.
+        private readonly Dictionary<VizrtEngineType, SemaphoreSlim> _locks;
+
         public VizrtService(VizrtSettings vizrtSettings, LogService logService)
         {
             _settings = vizrtSettings;
-            _telefonIsimOnAir = InitBoolDict();
-            _muhabirKameraOnAir = InitBoolDict();
-            _canliOnAir = InitBoolDict();
-            _canliYerOnAir = InitBoolDict();
-            _whatsappOnAir = InitBoolDict();
             _log = logService;
+
+            _engines = new Dictionary<VizrtEngineType, VizrtEngineClient>
+            {
+                { VizrtEngineType.Reji,    new VizrtEngineClient(1, "viz-KJ") },
+                { VizrtEngineType.Grafik1, new VizrtEngineClient(2, "viz-Grafik1") },
+                { VizrtEngineType.Grafik2, new VizrtEngineClient(3, "viz-Grafik2") }
+            };
+
+            _locks = new Dictionary<VizrtEngineType, SemaphoreSlim>
+            {
+                { VizrtEngineType.Reji,    new SemaphoreSlim(1, 1) },
+                { VizrtEngineType.Grafik1, new SemaphoreSlim(1, 1) },
+                { VizrtEngineType.Grafik2, new SemaphoreSlim(1, 1) }
+            };
+
             _aktifRozet = new Dictionary<VizrtEngineType, RozetType?>
             {
                 { VizrtEngineType.Reji,    null },
                 { VizrtEngineType.Grafik1, null },
                 { VizrtEngineType.Grafik2, null }
             };
-            _engines = new Dictionary<VizrtEngineType, IVizrtEngine>
-            {
-                { VizrtEngineType.Reji,    new VizrtEngineClient(1, "viz-KJ") },
-                { VizrtEngineType.Grafik1, new VizrtEngineClient(2, "viz-Grafik1") },
-                { VizrtEngineType.Grafik2, new VizrtEngineClient(3, "viz-Grafik2") }
-            };
+
             _kjTekOnAir = InitBoolDict();
             _kjCiftOnAir = InitBoolDict();
             _kjUzunOnAir = InitBoolDict();
             _yerOnAir = InitBoolDict();
             _sosyalMedyaOnAir = InitBoolDict();
             _isimlikOnAir = InitBoolDict();
+            _telefonIsimOnAir = InitBoolDict();
+            _muhabirKameraOnAir = InitBoolDict();
+            _canliOnAir = InitBoolDict();
+            _canliYerOnAir = InitBoolDict();
+            _whatsappOnAir = InitBoolDict();
+
             _nextTextAnimIndex = new Dictionary<VizrtEngineType, int>
             {
                 { VizrtEngineType.Reji,    1 },
                 { VizrtEngineType.Grafik1, 1 },
                 { VizrtEngineType.Grafik2, 1 }
             };
+
             _kjScenePath = new Dictionary<VizrtEngineType, string>
             {
                 { VizrtEngineType.Reji,    vizrtSettings.Scenes.KJScene },
@@ -80,20 +117,16 @@ namespace NTR.Application.Services
                 { VizrtEngineType.Grafik2, false }
             };
 
-        private IVizrtEngine GetEngine(VizrtEngineType engineType) => _engines[engineType];
+        private VizrtEngineClient GetEngine(VizrtEngineType engineType) => _engines[engineType];
 
-        // ─── CONNECTION ───────────────────────────────────────────
+        // ─── CONNECTION ───────────────────────────────────────────────────
 
         public CommandResult Connect(VizrtEngineType engineType, string ip)
         {
             var engine = GetEngine(engineType);
             bool result = engine.Connect(ip);
-
-            if (result)
-                _log.Log("Engine", $"{engineType} bağlantısı kuruldu.", $"IP: {ip}");
-            else
-                _log.Error("Engine", $"{engineType} bağlantısı kurulamadı.", $"IP: {ip}");
-
+            if (result) _log.Log("Engine", $"{engineType} bağlantısı kuruldu.", $"IP: {ip}");
+            else _log.Error("Engine", $"{engineType} bağlantısı kurulamadı.", $"IP: {ip}");
             return result
                 ? CommandResult.Ok($"{engineType} bağlantısı kuruldu. IP: {ip}")
                 : CommandResult.Fail($"{engineType} bağlantısı kurulamadı. IP: {ip}");
@@ -110,104 +143,101 @@ namespace NTR.Application.Services
         }
 
         public VizrtEngine GetEngineStatus(VizrtEngineType engineType) => GetEngine(engineType).GetStatus();
-
         public List<VizrtEngine> GetAllEngineStatus() => _engines.Values.Select(e => e.GetStatus()).ToList();
 
-        // ─── SCENE ───────────────────────────────────────────────
+        // ─── SCENE ───────────────────────────────────────────────────────
 
         public CommandResult LoadScene(VizrtEngineType engineType, string scenePath)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                _log.Warning("Scene", $"{engineType} bağlı değil.", $"Scene: {scenePath}");
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected)
+                {
+                    _log.Warning("Scene", $"{engineType} bağlı değil.", $"Scene: {scenePath}");
+                    return CommandResult.Fail($"{engineType} bağlı değil.");
+                }
+                _kjScenePath[engineType] = scenePath;
+                engine.LoadScene(scenePath);
+                _log.Log("Scene", "Scene yüklendi.", $"{engineType} | {scenePath}");
+                return CommandResult.Ok($"Scene yüklendi: {scenePath}");
             }
-            _kjScenePath[engineType] = scenePath;
-            engine.LoadScene(scenePath);
-            _log.Log("Scene", $"Scene yüklendi.", $"{engineType} | {scenePath}");
-            return CommandResult.Ok($"Scene yüklendi: {scenePath}");
+            finally { sem.Release(); }
         }
 
-        // ─── KJ ──────────────────────────────────────────────────
+        // ─── KJ ──────────────────────────────────────────────────────────
 
         public async Task<CommandResult> SendKjAsync(VizrtEngineType engineType, KjType kjType, string text1, string text2 = "", RozetType? rozet = null)
         {
-            _log.Log("KJ", $"{kjType} KJ yayına verildi.", $"{engineType} | {text1}" + (string.IsNullOrEmpty(text2) ? "" : $" | {text2}") + (rozet.HasValue ? $" | Rozet: {rozet}" : ""));
+            _log.Log("KJ", $"{kjType} KJ yayına verildi.",
+                $"{engineType} | {text1}" + (string.IsNullOrEmpty(text2) ? "" : $" | {text2}") +
+                (rozet.HasValue ? $" | Rozet: {rozet}" : ""));
 
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            if (string.IsNullOrEmpty(scene))
-                return CommandResult.Fail("Scene path tanımlı değil. Önce LoadScene çağırın.");
-
-            if (string.IsNullOrWhiteSpace(text1))
-                return CommandResult.Fail("Text1 boş olamaz.");
-
-            CommandResult kjResult;
-            switch (kjType)
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                case KjType.Tekli:
-                    kjResult = await SendKjTekliAsync(engine, scene, engineType, text1);
-                    break;
-                case KjType.Ciftli:
-                    if (string.IsNullOrWhiteSpace(text2))
-                        return CommandResult.Fail("Çift satır KJ için Text2 gereklidir.");
-                    kjResult = await SendKjCiftliAsync(engine, scene, engineType, text1, text2);
-                    break;
-                case KjType.Uzun:
-                    if (string.IsNullOrWhiteSpace(text2))
-                        return CommandResult.Fail("Uzun KJ için Text2 gereklidir.");
-                    kjResult = await SendKjUzunAsync(engine, scene, engineType, text1, text2);
-                    break;
-                default:
-                    return CommandResult.Fail("Geçersiz KJ tipi.");
-            }
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            if (rozet.HasValue)
-            {
-                if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozet)
+                string scene = _kjScenePath[engineType];
+                if (string.IsNullOrEmpty(scene)) return CommandResult.Fail("Scene path tanımlı değil. Önce LoadScene çağırın.");
+                if (string.IsNullOrWhiteSpace(text1)) return CommandResult.Fail("Text1 boş olamaz.");
+
+                CommandResult kjResult = kjType switch
+                {
+                    KjType.Tekli => await SendKjTekliAsync(engine, scene, engineType, text1),
+                    KjType.Ciftli => string.IsNullOrWhiteSpace(text2)
+                        ? CommandResult.Fail("Çift satır KJ için Text2 gereklidir.")
+                        : await SendKjCiftliAsync(engine, scene, engineType, text1, text2),
+                    KjType.Uzun => string.IsNullOrWhiteSpace(text2)
+                        ? CommandResult.Fail("Uzun KJ için Text2 gereklidir.")
+                        : await SendKjUzunAsync(engine, scene, engineType, text1, text2),
+                    _ => CommandResult.Fail("Geçersiz KJ tipi.")
+                };
+
+                if (rozet.HasValue)
+                {
+                    if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozet)
+                    {
+                        engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
+                        _aktifRozet[engineType] = null;
+                    }
+                    if (_aktifRozet[engineType] != rozet)
+                    {
+                        engine.Play(scene, GetRozetInAnim(engineType, rozet.Value));
+                        _aktifRozet[engineType] = rozet;
+                    }
+                }
+                else if (_aktifRozet[engineType].HasValue)
                 {
                     engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
                     _aktifRozet[engineType] = null;
                 }
-                if (_aktifRozet[engineType] != rozet)
-                {
-                    engine.Play(scene, GetRozetInAnim(engineType, rozet.Value));
-                    _aktifRozet[engineType] = rozet;
-                }
-            }
-            else
-            {
-                if (_aktifRozet[engineType].HasValue)
-                {
-                    engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
-                    _aktifRozet[engineType] = null;
-                }
-            }
 
-            return kjResult;
+                return kjResult;
+            }
+            finally { sem.Release(); }
         }
 
-        private async Task<CommandResult> SendKjTekliAsync(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1)
+        private async Task<CommandResult> SendKjTekliAsync(VizrtEngineClient engine, string scene, VizrtEngineType engineType, string text1)
         {
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
             string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
             string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT";
 
+            // ── Öncelik 2: PlayAndWaitAsync, Task.Delay yerine ─────────────
             if (_kjCiftOnAir[engineType])
             {
-                engine.Play(scene, ciftOutAnim);
+                await engine.PlayAndWaitAsync(scene, ciftOutAnim, 1500);
                 _kjCiftOnAir[engineType] = false;
-                await Task.Delay(1500); // Kapanması için 1.5 saniye bekle
             }
             if (_kjUzunOnAir[engineType])
             {
-                engine.Play(scene, uzunOutAnim);
+                await engine.PlayAndWaitAsync(scene, uzunOutAnim, 1500);
                 _kjUzunOnAir[engineType] = false;
-                await Task.Delay(1500);
             }
 
             string textYolu1 = isCumartesi ? "TEK_KJ_TEXT$TEK_KJ_TEXT" : "KJ_TEK$SATIR_1$TEXT1";
@@ -241,7 +271,7 @@ namespace NTR.Application.Services
             return CommandResult.Ok("Tekli KJ yayına verildi.");
         }
 
-        private async Task<CommandResult> SendKjCiftliAsync(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1, string text2)
+        private async Task<CommandResult> SendKjCiftliAsync(VizrtEngineClient engine, string scene, VizrtEngineType engineType, string text1, string text2)
         {
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
             string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
@@ -249,15 +279,13 @@ namespace NTR.Application.Services
 
             if (_kjTekOnAir[engineType])
             {
-                engine.Play(scene, tekOutAnim);
+                await engine.PlayAndWaitAsync(scene, tekOutAnim, 1500);
                 _kjTekOnAir[engineType] = false;
-                await Task.Delay(1500);
             }
             if (_kjUzunOnAir[engineType])
             {
-                engine.Play(scene, uzunOutAnim);
+                await engine.PlayAndWaitAsync(scene, uzunOutAnim, 1500);
                 _kjUzunOnAir[engineType] = false;
-                await Task.Delay(1500);
             }
 
             string textUstYolu1 = isCumartesi ? "CIFT_KJ_TEXT_UST$CIFT_KJ_TEXT_UST" : "KJ_CIFT$SATIR_1$TEXT_UST_1";
@@ -300,7 +328,7 @@ namespace NTR.Application.Services
             return CommandResult.Ok("Çift satır KJ yayına verildi.");
         }
 
-        private async Task<CommandResult> SendKjUzunAsync(IVizrtEngine engine, string scene, VizrtEngineType engineType, string text1, string text2)
+        private async Task<CommandResult> SendKjUzunAsync(VizrtEngineClient engine, string scene, VizrtEngineType engineType, string text1, string text2)
         {
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
             string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
@@ -308,15 +336,13 @@ namespace NTR.Application.Services
 
             if (_kjTekOnAir[engineType])
             {
-                engine.Play(scene, tekOutAnim);
+                await engine.PlayAndWaitAsync(scene, tekOutAnim, 1500);
                 _kjTekOnAir[engineType] = false;
-                await Task.Delay(1500);
             }
             if (_kjCiftOnAir[engineType])
             {
-                engine.Play(scene, ciftOutAnim);
+                await engine.PlayAndWaitAsync(scene, ciftOutAnim, 1500);
                 _kjCiftOnAir[engineType] = false;
-                await Task.Delay(1500);
             }
 
             string textUstYolu1 = isCumartesi ? "UZUN_KJ_TEXT_UST$UZUN_KJ_TEXT_UST" : "KJ_UZUN$SATIR_1$TEXT_UZUN_UST_1";
@@ -357,36 +383,52 @@ namespace NTR.Application.Services
 
         public async Task<CommandResult> TakeKjAsync(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
-            string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
-            string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
-            string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT";
-
-            if (_kjTekOnAir[engineType]) { engine.Play(scene, tekOutAnim); _kjTekOnAir[engineType] = false; }
-            if (_kjCiftOnAir[engineType]) { engine.Play(scene, ciftOutAnim); _kjCiftOnAir[engineType] = false; }
-            if (_kjUzunOnAir[engineType]) { engine.Play(scene, uzunOutAnim); _kjUzunOnAir[engineType] = false; }
-
-            if (_aktifRozet[engineType].HasValue)
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
-                _aktifRozet[engineType] = null;
-            }
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            _nextTextAnimIndex[engineType] = 1;
-            _log.Log("KJ", "KJ yayından alındı.", engineType.ToString());
-            return CommandResult.Ok("KJ yayından alındı.");
+                string scene = _kjScenePath[engineType];
+                bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
+                string tekOutAnim = isCumartesi ? "KJ$TEK_KJ$OUT" : "KJ_TUM$KJ_TEK$OUT";
+                string ciftOutAnim = isCumartesi ? "KJ$CIFT_KJ$OUT" : "KJ_TUM$KJ_CIFT$OUT";
+                string uzunOutAnim = "KJ_TUM$KJ_UZUN$OUT";
+
+                if (_kjTekOnAir[engineType]) { engine.Play(scene, tekOutAnim); _kjTekOnAir[engineType] = false; }
+                if (_kjCiftOnAir[engineType]) { engine.Play(scene, ciftOutAnim); _kjCiftOnAir[engineType] = false; }
+                if (_kjUzunOnAir[engineType]) { engine.Play(scene, uzunOutAnim); _kjUzunOnAir[engineType] = false; }
+
+                if (_aktifRozet[engineType].HasValue)
+                {
+                    engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
+                    _aktifRozet[engineType] = null;
+                }
+
+                _nextTextAnimIndex[engineType] = 1;
+                _log.Log("KJ", "KJ yayından alındı.", engineType.ToString());
+                return CommandResult.Ok("KJ yayından alındı.");
+            }
+            finally { sem.Release(); }
         }
 
         public async Task<CommandResult> TakeAllAsync(VizrtEngineType engineType)
         {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                return await TakeAllInternalAsync(engineType);
+            }
+            finally { sem.Release(); }
+        }
+
+        // Lock dışarıdan alındığında (örn. SendRollAsync) kullanılır
+        private async Task<CommandResult> TakeAllInternalAsync(VizrtEngineType engineType)
+        {
             var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
             string scene = _kjScenePath[engineType];
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI");
@@ -419,331 +461,343 @@ namespace NTR.Application.Services
 
             _nextTextAnimIndex[engineType] = 1;
 
-            // Açık grafiklerin çıkış animasyonu için bekle — artık thread bloklamıyor
+            // Çıkış animasyonlarının bitmesi için bekle (ACK desteklenmediğinden fallback)
             await Task.Delay(1000);
             engine.StageToStart("RENDERER*MAIN_LAYER");
             _log.Log("KJ", "Tüm grafikler yayından alındı.", engineType.ToString());
             return CommandResult.Ok("Tüm grafikler yayından alındı.");
         }
 
-        // ─── YER ─────────────────────────────────────────────────
+        // ─── YER ─────────────────────────────────────────────────────────
 
         public async Task<CommandResult> SendYerAsync(VizrtEngineType engineType, string text)
         {
-            _log.Log("Yer", $"Yer KJ yayına verildi.", $"{engineType} | {text}");
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            _log.Log("Yer", "Yer KJ yayına verildi.", $"{engineType} | {text}");
 
-            string scene = _kjScenePath[engineType];
-
-            if (_yerOnAir[engineType])
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                engine.Play(scene, "YER_KOSE_OUT");
-                await Task.Delay(800);
-            }
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            engine.SetObjectText(scene, "YER_KOSE$group$yer_text", text);
-            engine.Play(scene, "YER_KOSE_IN");
-            _yerOnAir[engineType] = true;
-            return CommandResult.Ok("Yer KJ yayına verildi.");
+                string scene = _kjScenePath[engineType];
+                if (_yerOnAir[engineType])
+                    await engine.PlayAndWaitAsync(scene, "YER_KOSE_OUT", 800);
+
+                engine.SetObjectText(scene, "YER_KOSE$group$yer_text", text);
+                engine.Play(scene, "YER_KOSE_IN");
+                _yerOnAir[engineType] = true;
+                return CommandResult.Ok("Yer KJ yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeYer(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            if (_yerOnAir[engineType])
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(_kjScenePath[engineType], "YER_KOSE_OUT");
-                _yerOnAir[engineType] = false;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (_yerOnAir[engineType]) { engine.Play(_kjScenePath[engineType], "YER_KOSE_OUT"); _yerOnAir[engineType] = false; }
+                return CommandResult.Ok("Yer KJ yayından alındı.");
             }
-            return CommandResult.Ok("Yer KJ yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── SOSYAL MEDYA ─────────────────────────────────────────
+        // ─── SOSYAL MEDYA ─────────────────────────────────────────────────
 
         public async Task<CommandResult> SendSosyalMedyaAsync(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            string scene = _kjScenePath[engineType];
-            engine.Play(scene, "SOSYAL_MEDYA_DONUSUMLU$OUT");
-            await Task.Delay(500);
-            engine.Play(scene, "SOSYAL_MEDYA_DONUSUMLU$IN");
-            _sosyalMedyaOnAir[engineType] = true;
-            return CommandResult.Ok("Sosyal medya yayına verildi.");
+                string scene = _kjScenePath[engineType];
+                engine.Play(scene, "SOSYAL_MEDYA_DONUSUMLU$OUT");
+                await Task.Delay(500);
+                engine.Play(scene, "SOSYAL_MEDYA_DONUSUMLU$IN");
+                _sosyalMedyaOnAir[engineType] = true;
+                return CommandResult.Ok("Sosyal medya yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeSosyalMedya(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            if (_sosyalMedyaOnAir[engineType]) { engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT"); _sosyalMedyaOnAir[engineType] = false; }
-            if (_whatsappOnAir[engineType]) { engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$OUT"); _whatsappOnAir[engineType] = false; }
-            return CommandResult.Ok("Sosyal medya yayından alındı.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_sosyalMedyaOnAir[engineType]) { engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT"); _sosyalMedyaOnAir[engineType] = false; }
+                if (_whatsappOnAir[engineType]) { engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$OUT"); _whatsappOnAir[engineType] = false; }
+                return CommandResult.Ok("Sosyal medya yayından alındı.");
+            }
+            finally { sem.Release(); }
         }
 
-        // ─── ISİMLİK ─────────────────────────────────────────────
+        // ─── ISİMLİK ─────────────────────────────────────────────────────
 
         public CommandResult SendIsimlik(VizrtEngineType engineType, string isim)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            string scene = _kjScenePath[engineType];
-            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            string textPath = isCumartesi ? "ISIMLIK$ISIMLIK$SUNUCU_ISIM" : "ISIMLIK$isim";
-            string inAnim = isCumartesi ? "KJ$ISIMLIK$IN" : "ISIMLIK$IN";
+                string scene = _kjScenePath[engineType];
+                bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+                string textPath = isCumartesi ? "ISIMLIK$ISIMLIK$SUNUCU_ISIM" : "ISIMLIK$isim";
+                string inAnim = isCumartesi ? "KJ$ISIMLIK$IN" : "ISIMLIK$IN";
 
-            if (!string.IsNullOrWhiteSpace(isim))
-                engine.SetObjectText(scene, textPath, isim.ToUpper(new System.Globalization.CultureInfo("tr-TR")));
+                if (!string.IsNullOrWhiteSpace(isim))
+                    engine.SetObjectText(scene, textPath, isim.ToUpper(new System.Globalization.CultureInfo("tr-TR")));
 
-            engine.Play(scene, inAnim);
-            _isimlikOnAir[engineType] = true;
-            _log.Log("İsimlik", "İsimlik yayına verildi.", $"{engineType} | İsim: {(string.IsNullOrWhiteSpace(isim) ? "Sahnede Sabit" : isim)}");
-            return CommandResult.Ok("İsimlik yayına verildi.");
+                engine.Play(scene, inAnim);
+                _isimlikOnAir[engineType] = true;
+                _log.Log("İsimlik", "İsimlik yayına verildi.", $"{engineType} | {(string.IsNullOrWhiteSpace(isim) ? "Sahnede Sabit" : isim)}");
+                return CommandResult.Ok("İsimlik yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeIsimlik(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            string outAnim = isCumartesi ? "KJ$ISIMLIK$OUT" : "ISIMLIK$OUT";
-
-            if (_isimlikOnAir[engineType])
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(scene, outAnim);
-                _isimlikOnAir[engineType] = false;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+                string outAnim = isCumartesi ? "KJ$ISIMLIK$OUT" : "ISIMLIK$OUT";
+                if (_isimlikOnAir[engineType]) { engine.Play(scene, outAnim); _isimlikOnAir[engineType] = false; }
+                return CommandResult.Ok("İsimlik yayından alındı.");
             }
-            return CommandResult.Ok("İsimlik yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── RAW COMMAND ──────────────────────────────────────────
+        // ─── RAW COMMAND ──────────────────────────────────────────────────
 
         public CommandResult SendRawCommand(VizrtEngineType engineType, string command)
         {
-            _log.Log("Raw", $"Ham komut gönderildi.", $"{engineType} | {command}");
+            _log.Log("Raw", "Ham komut gönderildi.", $"{engineType} | {command}");
             var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
             return engine.Send(command);
         }
 
-        // ─── TELEFON İSİMLİK ─────────────────────────────────────
+        // ─── TELEFON İSİMLİK ──────────────────────────────────────────────
 
         public async Task<CommandResult> SendTelefonIsimlikAsync(VizrtEngineType engineType, string isim, string title, bool telefonMu)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            if (_isimlikOnAir[engineType])
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                engine.Play(scene, "KJ_TUM$ISIMLIK$OUT");
-                _isimlikOnAir[engineType] = false;
-                await Task.Delay(400);
-            }
-            if (_telefonIsimOnAir[engineType])
-            {
-                engine.Play(scene, "KJ_TUM$TELEFON$OUT");
-                engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT");
-                _telefonIsimOnAir[engineType] = false;
-                await Task.Delay(400);
-            }
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-            if (telefonMu)
-            {
-                engine.Visibility(scene, "ISIMLIK_2", false);
-                engine.Visibility(scene, "TELEFON", true);
-                engine.SetObjectText(scene, "TELEFON$ISIM", isim);
-                engine.SetObjectText(scene, "TELEFON$TITLE", title);
-                engine.Play(scene, "KJ_TUM$TELEFON$IN");
-            }
-            else
-            {
-                engine.Visibility(scene, "TELEFON", false);
-                engine.Visibility(scene, "ISIMLIK_2", true);
-                engine.SetObjectText(scene, "ISIMLIK_2$ISIM", isim);
-                engine.SetObjectText(scene, "ISIMLIK_2$TITLE", title);
-                engine.Play(scene, "KJ_TUM$ISIMLIK_2$IN");
-            }
+                string scene = _kjScenePath[engineType];
+                if (_isimlikOnAir[engineType])
+                {
+                    await engine.PlayAndWaitAsync(scene, "KJ_TUM$ISIMLIK$OUT", 400);
+                    _isimlikOnAir[engineType] = false;
+                }
+                if (_telefonIsimOnAir[engineType])
+                {
+                    engine.Play(scene, "KJ_TUM$TELEFON$OUT");
+                    engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT");
+                    await Task.Delay(400);
+                    _telefonIsimOnAir[engineType] = false;
+                }
 
-            _telefonIsimOnAir[engineType] = true;
-            return CommandResult.Ok($"{(telefonMu ? "Telefon" : "İsimlik")} yayına verildi.");
+                if (telefonMu)
+                {
+                    engine.Visibility(scene, "ISIMLIK_2", false);
+                    engine.Visibility(scene, "TELEFON", true);
+                    engine.SetObjectText(scene, "TELEFON$ISIM", isim);
+                    engine.SetObjectText(scene, "TELEFON$TITLE", title);
+                    engine.Play(scene, "KJ_TUM$TELEFON$IN");
+                }
+                else
+                {
+                    engine.Visibility(scene, "TELEFON", false);
+                    engine.Visibility(scene, "ISIMLIK_2", true);
+                    engine.SetObjectText(scene, "ISIMLIK_2$ISIM", isim);
+                    engine.SetObjectText(scene, "ISIMLIK_2$TITLE", title);
+                    engine.Play(scene, "KJ_TUM$ISIMLIK_2$IN");
+                }
+                _telefonIsimOnAir[engineType] = true;
+                return CommandResult.Ok($"{(telefonMu ? "Telefon" : "İsimlik")} yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeTelefonIsimlik(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            engine.Play(scene, "KJ_TUM$TELEFON$OUT");
-            engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT");
-            _telefonIsimOnAir[engineType] = false;
-            return CommandResult.Ok("Telefon/İsimlik yayından alındı.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                engine.Play(scene, "KJ_TUM$TELEFON$OUT");
+                engine.Play(scene, "KJ_TUM$ISIMLIK_2$OUT");
+                _telefonIsimOnAir[engineType] = false;
+                return CommandResult.Ok("Telefon/İsimlik yayından alındı.");
+            }
+            finally { sem.Release(); }
         }
 
-        // ─── MUHABİR KAMERA ──────────────────────────────────────
+        // ─── MUHABİR KAMERA ───────────────────────────────────────────────
 
         public CommandResult SendMuhabirKamera(VizrtEngineType engineType, string muhabir, string kameraman)
         {
             _log.Log("MuhabirKamera", "Muhabir/Kamera yayına verildi.", $"{engineType} | Muhabir: {muhabir} | Kamera: {kameraman}");
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            // 🌟 AKILLI YOL SEÇİCİ 🌟
-            bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-
-            if (string.IsNullOrWhiteSpace(muhabir) && string.IsNullOrWhiteSpace(kameraman))
-                return CommandResult.Fail("Muhabir ve kameraman ikisi birden boş olamaz.");
-
-            // Dinamik Yollar (Hafta sonu projelerine ekleneceği varsayımıyla mantıklı isimler verdik)
-            string muhabirTextPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_TEXT" : "ISIMLIK_3$noname$HABER$HABER_TEXT";
-            string muhabirGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_GRUP" : "ISIMLIK_3$noname$HABER";
-
-            string kameraTextPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_TEXT" : "ISIMLIK_3$noname$KAMERA$KAMERA_TEXT";
-            string kameraGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_GRUP" : "ISIMLIK_3$noname$KAMERA";
-
-            string inAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$IN" : "KJ_TUM$ISIMLIK_3$IN";
-
-            var trCulture = new System.Globalization.CultureInfo("tr-TR");
-
-            // Muhabir Kısmı
-            if (!string.IsNullOrWhiteSpace(muhabir))
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.SetObjectText(scene, muhabirTextPath, muhabir.ToUpper(trCulture));
-                engine.Visibility(scene, muhabirGrupPath, true);
-            }
-            else engine.Visibility(scene, muhabirGrupPath, false);
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (string.IsNullOrWhiteSpace(muhabir) && string.IsNullOrWhiteSpace(kameraman))
+                    return CommandResult.Fail("Muhabir ve kameraman ikisi birden boş olamaz.");
 
-            // Kamera Kısmı
-            if (!string.IsNullOrWhiteSpace(kameraman))
-            {
-                engine.SetObjectText(scene, kameraTextPath, kameraman.ToUpper(trCulture));
-                engine.Visibility(scene, kameraGrupPath, true);
-            }
-            else engine.Visibility(scene, kameraGrupPath, false);
+                string scene = _kjScenePath[engineType];
+                bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
 
-            engine.Play(scene, inAnim);
-            _muhabirKameraOnAir[engineType] = true;
-            return CommandResult.Ok($"Muhabir/Kamera yayına verildi. Muhabir: {muhabir} / Kamera: {kameraman}");
+                string muhabirTextPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_TEXT" : "ISIMLIK_3$noname$HABER$HABER_TEXT";
+                string muhabirGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$MUHABIR_GRUP" : "ISIMLIK_3$noname$HABER";
+                string kameraTextPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_TEXT" : "ISIMLIK_3$noname$KAMERA$KAMERA_TEXT";
+                string kameraGrupPath = isHaftaSonu ? "MUHABIR_KAMERA$KAMERA_GRUP" : "ISIMLIK_3$noname$KAMERA";
+                string inAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$IN" : "KJ_TUM$ISIMLIK_3$IN";
+
+                var trCulture = new System.Globalization.CultureInfo("tr-TR");
+                if (!string.IsNullOrWhiteSpace(muhabir)) { engine.SetObjectText(scene, muhabirTextPath, muhabir.ToUpper(trCulture)); engine.Visibility(scene, muhabirGrupPath, true); }
+                else engine.Visibility(scene, muhabirGrupPath, false);
+                if (!string.IsNullOrWhiteSpace(kameraman)) { engine.SetObjectText(scene, kameraTextPath, kameraman.ToUpper(trCulture)); engine.Visibility(scene, kameraGrupPath, true); }
+                else engine.Visibility(scene, kameraGrupPath, false);
+
+                engine.Play(scene, inAnim);
+                _muhabirKameraOnAir[engineType] = true;
+                return CommandResult.Ok($"Muhabir/Kamera yayına verildi. Muhabir: {muhabir} / Kamera: {kameraman}");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeMuhabirKamera(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            // 🌟 AKILLI YOL SEÇİCİ 🌟
-            bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            string outAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$OUT" : "KJ_TUM$ISIMLIK_3$OUT";
-
-            if (_muhabirKameraOnAir[engineType])
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(scene, outAnim);
-                _muhabirKameraOnAir[engineType] = false;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                bool isHaftaSonu = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+                string outAnim = isHaftaSonu ? "KJ$MUHABIR_KAMERA$OUT" : "KJ_TUM$ISIMLIK_3$OUT";
+                if (_muhabirKameraOnAir[engineType]) { engine.Play(scene, outAnim); _muhabirKameraOnAir[engineType] = false; }
+                return CommandResult.Ok("Muhabir/Kamera yayından alındı.");
             }
-
-            return CommandResult.Ok("Muhabir/Kamera yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── CANLI ───────────────────────────────────────────────
+        // ─── CANLI ───────────────────────────────────────────────────────
 
         public CommandResult SendCanli(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            if (_canliYerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
-            engine.Play(scene, "KJ_TUM$CANLI_IN");
-            _canliOnAir[engineType] = true;
-            return CommandResult.Ok("Canlı yayına verildi.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_canliYerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
+                engine.Play(scene, "KJ_TUM$CANLI_IN");
+                _canliOnAir[engineType] = true;
+                return CommandResult.Ok("Canlı yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeCanli(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            if (_canliOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_OUT"); _canliOnAir[engineType] = false; }
-            if (_canliYerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
-            return CommandResult.Ok("Canlı yayından alındı.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_canliOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_OUT"); _canliOnAir[engineType] = false; }
+                if (_canliYerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
+                return CommandResult.Ok("Canlı yayından alındı.");
+            }
+            finally { sem.Release(); }
         }
 
-        // ─── CANLI YER ───────────────────────────────────────────
+        // ─── CANLI YER ───────────────────────────────────────────────────
 
         public CommandResult SendCanliYer(VizrtEngineType engineType, string text)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            if (_canliOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_OUT"); _canliOnAir[engineType] = false; }
-            if (_yerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$YER_KOSE$YER_KOSE_OUT"); _yerOnAir[engineType] = false; }
-            engine.SetObjectText(scene, "CANLI_YER_KOSE$group$canli_yer_text", text);
-            engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_IN");
-            _canliYerOnAir[engineType] = true;
-            return CommandResult.Ok("Canlı yer yayına verildi.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_canliOnAir[engineType]) { engine.Play(scene, "KJ_TUM$CANLI_OUT"); _canliOnAir[engineType] = false; }
+                if (_yerOnAir[engineType]) { engine.Play(scene, "KJ_TUM$YER_KOSE$YER_KOSE_OUT"); _yerOnAir[engineType] = false; }
+                engine.SetObjectText(scene, "CANLI_YER_KOSE$group$canli_yer_text", text);
+                engine.Play(scene, "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_IN");
+                _canliYerOnAir[engineType] = true;
+                return CommandResult.Ok("Canlı yer yayına verildi.");
+            }
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeCanliYer(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            if (_canliYerOnAir[engineType])
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(_kjScenePath[engineType], "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT");
-                _canliYerOnAir[engineType] = false;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (_canliYerOnAir[engineType]) { engine.Play(_kjScenePath[engineType], "KJ_TUM$CANLI_YER_KOSE$CANLI_YER_KOSE_OUT"); _canliYerOnAir[engineType] = false; }
+                return CommandResult.Ok("Canlı yer yayından alındı.");
             }
-            return CommandResult.Ok("Canlı yer yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── ROZETLER ────────────────────────────────────────────
+        // ─── ROZETLER ────────────────────────────────────────────────────
 
         private string GetRozetInAnim(VizrtEngineType engineType, RozetType rozetType)
         {
             string scene = _kjScenePath[engineType];
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            if (isCumartesi)
+            if (isCumartesi) return rozetType switch
             {
-                return rozetType switch
-                {
-                    RozetType.AzSonra => "KJ$AZ_SONRA$IN",
-                    RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$IN",
-                    RozetType.SicakGelisme => "KJ$CORNER$IN",
-                    _ => ""
-                };
-            }
+                RozetType.AzSonra => "KJ$AZ_SONRA$IN",
+                RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$IN",
+                RozetType.SicakGelisme => "KJ$CORNER$IN",
+                _ => ""
+            };
             return rozetType switch
             {
                 RozetType.AzSonra => "KJ_TUM$KJ_AZ_SONRA$IN",
@@ -752,7 +806,6 @@ namespace NTR.Application.Services
                 RozetType.SonDakika => "KJ_TUM$KJ_SON_DAKIKA$IN",
                 RozetType.OzelHaber => "KJ_TUM$OZEL_HABER$IN",
                 RozetType.WhatsappIhbar => "KJ_TUM$KJ_WHATSAPP_IHBAR$IN",
-                RozetType.SicakGelisme => "",
                 _ => ""
             };
         }
@@ -761,16 +814,13 @@ namespace NTR.Application.Services
         {
             string scene = _kjScenePath[engineType];
             bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            if (isCumartesi)
+            if (isCumartesi) return rozetType switch
             {
-                return rozetType switch
-                {
-                    RozetType.AzSonra => "KJ$AZ_SONRA$OUT",
-                    RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$OUT",
-                    RozetType.SicakGelisme => "KJ$CORNER$OUT",
-                    _ => ""
-                };
-            }
+                RozetType.AzSonra => "KJ$AZ_SONRA$OUT",
+                RozetType.AzSonraDsf => "KJ$DSF_AZ_SONRA$OUT",
+                RozetType.SicakGelisme => "KJ$CORNER$OUT",
+                _ => ""
+            };
             return rozetType switch
             {
                 RozetType.AzSonra => "KJ_TUM$KJ_AZ_SONRA$OUT",
@@ -779,7 +829,6 @@ namespace NTR.Application.Services
                 RozetType.SonDakika => "KJ_TUM$KJ_SON_DAKIKA$OUT",
                 RozetType.OzelHaber => "KJ_TUM$OZEL_HABER$OUT",
                 RozetType.WhatsappIhbar => "KJ_TUM$KJ_WHATSAPP_IHBAR$OUT",
-                RozetType.SicakGelisme => "",
                 _ => ""
             };
         }
@@ -787,217 +836,217 @@ namespace NTR.Application.Services
         public CommandResult SendRozet(VizrtEngineType engineType, RozetType rozetType)
         {
             _log.Log("Rozet", $"{rozetType} rozeti yayına verildi.", engineType.ToString());
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozetType)
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
-                _aktifRozet[engineType] = null;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_aktifRozet[engineType].HasValue && _aktifRozet[engineType] != rozetType)
+                {
+                    engine.Play(scene, GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
+                    _aktifRozet[engineType] = null;
+                }
+                if (_aktifRozet[engineType] == rozetType) return CommandResult.Ok($"{rozetType} rozeti zaten yayında.");
+                if (_sosyalMedyaOnAir[engineType]) { engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT"); _sosyalMedyaOnAir[engineType] = false; }
+                engine.Play(scene, GetRozetInAnim(engineType, rozetType));
+                _aktifRozet[engineType] = rozetType;
+                return CommandResult.Ok($"{rozetType} rozeti yayına verildi.");
             }
-            if (_aktifRozet[engineType] == rozetType)
-                return CommandResult.Ok($"{rozetType} rozeti zaten yayında.");
-
-            if (_sosyalMedyaOnAir[engineType]) { engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT"); _sosyalMedyaOnAir[engineType] = false; }
-
-            engine.Play(scene, GetRozetInAnim(engineType, rozetType));
-            _aktifRozet[engineType] = rozetType;
-            return CommandResult.Ok($"{rozetType} rozeti yayına verildi.");
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeRozet(VizrtEngineType engineType, RozetType rozetType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            if (_aktifRozet[engineType] == rozetType)
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(_kjScenePath[engineType], GetRozetOutAnim(engineType, rozetType));
-                _aktifRozet[engineType] = null;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (_aktifRozet[engineType] == rozetType) { engine.Play(_kjScenePath[engineType], GetRozetOutAnim(engineType, rozetType)); _aktifRozet[engineType] = null; }
+                return CommandResult.Ok($"{rozetType} rozeti yayından alındı.");
             }
-            return CommandResult.Ok($"{rozetType} rozeti yayından alındı.");
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeAllRozet(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            if (_aktifRozet[engineType].HasValue)
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(_kjScenePath[engineType], GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value));
-                _aktifRozet[engineType] = null;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (_aktifRozet[engineType].HasValue) { engine.Play(_kjScenePath[engineType], GetRozetOutAnim(engineType, _aktifRozet[engineType]!.Value)); _aktifRozet[engineType] = null; }
+                return CommandResult.Ok("Tüm rozetler yayından alındı.");
             }
-            return CommandResult.Ok("Tüm rozetler yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── WHATSAPP ─────────────────────────────────────────────
+        // ─── WHATSAPP ─────────────────────────────────────────────────────
 
         public async Task<CommandResult> SendWhatsappAsync(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            if (_sosyalMedyaOnAir[engineType])
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                engine.Play(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT");
-                _sosyalMedyaOnAir[engineType] = false;
-                await Task.Delay(500);
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                if (_sosyalMedyaOnAir[engineType])
+                {
+                    await engine.PlayAndWaitAsync(scene, "KJ_TUM$SOSYAL_MEDYA_DONUSUMLU$OUT", 500);
+                    _sosyalMedyaOnAir[engineType] = false;
+                }
+                engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$IN");
+                _whatsappOnAir[engineType] = true;
+                return CommandResult.Ok("Whatsapp yayına verildi.");
             }
-
-            engine.Play(scene, "KJ_TUM$TELEFON_WHATSAPP$IN");
-            _whatsappOnAir[engineType] = true;
-            return CommandResult.Ok("Whatsapp yayına verildi.");
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeWhatsapp(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            if (_whatsappOnAir[engineType])
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
             {
-                engine.Play(_kjScenePath[engineType], "KJ_TUM$TELEFON_WHATSAPP$OUT");
-                _whatsappOnAir[engineType] = false;
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                if (_whatsappOnAir[engineType]) { engine.Play(_kjScenePath[engineType], "KJ_TUM$TELEFON_WHATSAPP$OUT"); _whatsappOnAir[engineType] = false; }
+                return CommandResult.Ok("Whatsapp yayından alındı.");
             }
-            return CommandResult.Ok("Whatsapp yayından alındı.");
+            finally { sem.Release(); }
         }
 
-        // ─── ROLL ─────────────────────────────────────────────────
+        // ─── ROLL ─────────────────────────────────────────────────────────
 
         public async Task<CommandResult> SendRollAsync(VizrtEngineType engineType, string tesekkurYazisi, List<(string Baslik, string Yazi)> satirlar, List<string> sponsorlar)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            // 0. EKRANI TEMİZLE VE BEKLE
-            await TakeAllAsync(engineType);
-            await Task.Delay(1000); // Açık grafiklerin çıkış animasyonu için bekle
-
-            int doluSatirSayisi = 0;
-            int vizrtKapasite = 24;
-            var trCulture = new System.Globalization.CultureInfo("tr-TR");
-
-            // 1. İSİM VE ÜNVANLAR
-            for (int i = 0; i < vizrtKapasite; i++)
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                int sira = i + 1;
-                string unvan = "";
-                string isim = "";
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
 
-                if (satirlar != null && i < satirlar.Count)
+                string scene = _kjScenePath[engineType];
+
+                // Ekranı temizle (lock zaten elimizde, internal metodu kullan)
+                await TakeAllInternalAsync(engineType);
+                await Task.Delay(1000);
+
+                int doluSatirSayisi = 0;
+                int vizrtKapasite = 24;
+                var trCulture = new System.Globalization.CultureInfo("tr-TR");
+
+                for (int i = 0; i < vizrtKapasite; i++)
                 {
-                    unvan = (satirlar[i].Baslik ?? "").ToUpper(trCulture);
-                    isim = (satirlar[i].Yazi ?? "").ToUpper(trCulture);
+                    int sira = i + 1;
+                    string unvan = "", isim = "";
+                    if (satirlar != null && i < satirlar.Count)
+                    {
+                        unvan = (satirlar[i].Baslik ?? "").ToUpper(trCulture);
+                        isim = (satirlar[i].Yazi ?? "").ToUpper(trCulture);
+                    }
+                    engine.SetObjectText(scene, $"baslik{sira}", unvan);
+                    engine.SetObjectText(scene, $"yazi{sira}", isim);
+                    bool dolu = !string.IsNullOrWhiteSpace(unvan) || !string.IsNullOrWhiteSpace(isim);
+                    engine.Visibility(scene, $"baslik{sira}", dolu);
+                    engine.Visibility(scene, $"yazi{sira}", dolu);
+                    if (dolu) doluSatirSayisi++;
                 }
 
-                engine.SetObjectText(scene, $"baslik{sira}", unvan);
-                engine.SetObjectText(scene, $"yazi{sira}", isim);
+                engine.SetObjectText(scene, "tesekkur", (tesekkurYazisi ?? "").ToUpper(trCulture));
 
-                bool dolu = !string.IsNullOrWhiteSpace(unvan) || !string.IsNullOrWhiteSpace(isim);
-                engine.Visibility(scene, $"baslik{sira}", dolu);
-                engine.Visibility(scene, $"yazi{sira}", dolu);
-                if (dolu) doluSatirSayisi++;
-            }
-
-            // 2. TEŞEKKÜR
-            engine.SetObjectText(scene, "tesekkur", (tesekkurYazisi ?? "").ToUpper(trCulture));
-
-            // 3. SPONSORLAR
-            string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
-            for (int k = 1; k <= 5; k++)
-            {
-                if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
+                for (int k = 1; k <= 5; k++)
                 {
-                    engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {klasorYolu}{sponsorlar[k - 1]}");
-                    engine.Visibility(scene, $"reklam_image_{k}", true);
+                    if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                    {
+                        engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {klasorYolu}{sponsorlar[k - 1]}");
+                        engine.Visibility(scene, $"reklam_image_{k}", true);
+                    }
+                    else engine.Visibility(scene, $"reklam_image_{k}", false);
                 }
-                else engine.Visibility(scene, $"reklam_image_{k}", false);
+
+                int tesekkurVal = string.IsNullOrWhiteSpace(tesekkurYazisi) ? 0 : 3;
+                int reklamVal = (sponsorlar?.Count ?? 0) * 2;
+                int toplamSanal = Math.Max(doluSatirSayisi + tesekkurVal + reklamVal, 1);
+                double targetY = 490.0 + ((toplamSanal - 12) * 48.0);
+                string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
+                engine.Send($"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0");
+
+                engine.Play(scene, "KJ_TUM$ROLL$IN");
+                _log.Log("Roll", "Roll yayına verildi.", $"Dolu Satır: {doluSatirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
+                return CommandResult.Ok("Roll yayına verildi.");
             }
-
-            // 4. DİNAMİK Y EKSENİ
-            int tesekkurVal = string.IsNullOrWhiteSpace(tesekkurYazisi) ? 0 : 3;
-            int reklamVal = (sponsorlar?.Count ?? 0) * 2;
-            int toplamSanal = Math.Max(doluSatirSayisi + tesekkurVal + reklamVal, 1);
-            double targetY = 490.0 + ((toplamSanal - 12) * 48.0);
-            string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
-            engine.Send($"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0");
-
-            // 5. ANİMASYON
-            engine.Play(scene, "KJ_TUM$ROLL$IN");
-            _log.Log("Roll", "Roll yayına verildi.", $"Dolu Satır: {doluSatirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
-            return CommandResult.Ok("Roll yayına verildi.");
+            finally { sem.Release(); }
         }
 
         public CommandResult TakeRoll(VizrtEngineType engineType)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-            bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
-            engine.Play(scene, isCumartesi ? "KJ$ROLL$OUT" : "KJ_TUM$ROLL$OUT");
-            _log.Log("Roll", "Roll yayından alındı.", engineType.ToString());
-            return CommandResult.Ok("Roll yayından alındı.");
+            var sem = _locks[engineType];
+            sem.Wait();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+                bool isCumartesi = scene.Contains("CUMARTESI_SURPRIZI") || scene.Contains("PAZAR");
+                engine.Play(scene, isCumartesi ? "KJ$ROLL$OUT" : "KJ_TUM$ROLL$OUT");
+                _log.Log("Roll", "Roll yayından alındı.", engineType.ToString());
+                return CommandResult.Ok("Roll yayından alındı.");
+            }
+            finally { sem.Release(); }
         }
 
         public async Task<CommandResult> SendRollTekMetinAsync(VizrtEngineType engineType, string rollMetni, List<string> sponsorlar)
         {
-            var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
-
-            string scene = _kjScenePath[engineType];
-
-            // 0. EKRANI TEMİZLE VE BEKLE
-            await TakeAllAsync(engineType);
-            await Task.Delay(500); // Roll tek metin için optimize: 500ms yeterli
-
-            // 1. METİN
-            var trCulture = new System.Globalization.CultureInfo("tr-TR");
-            string gonderilecekMetin = (rollMetni ?? "").ToUpper(trCulture);
-            engine.SetObjectText(scene, "ROLL_TEXT", gonderilecekMetin);
-
-            // 2. SPONSORLAR
-            string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
-            for (int k = 1; k <= 5; k++)
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
             {
-                if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+                string scene = _kjScenePath[engineType];
+
+                await TakeAllInternalAsync(engineType);
+                await Task.Delay(500);
+
+                var trCulture = new System.Globalization.CultureInfo("tr-TR");
+                string gonderilecekMetin = (rollMetni ?? "").ToUpper(trCulture);
+                engine.SetObjectText(scene, "ROLL_TEXT", gonderilecekMetin);
+
+                string klasorYolu = @"D:\SHOWTV_REJI_DATA\ROLL\";
+                for (int k = 1; k <= 5; k++)
                 {
-                    engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {klasorYolu}{sponsorlar[k - 1]}");
-                    engine.Visibility(scene, $"reklam_image_{k}", true);
+                    if (sponsorlar != null && (k - 1) < sponsorlar.Count)
+                    {
+                        engine.Send($"SCENE*{scene}*TREE*$reklam_image_{k}*IMAGE SET {klasorYolu}{sponsorlar[k - 1]}");
+                        engine.Visibility(scene, $"reklam_image_{k}", true);
+                    }
+                    else engine.Visibility(scene, $"reklam_image_{k}", false);
                 }
-                else engine.Visibility(scene, $"reklam_image_{k}", false);
+
+                int satirSayisi = gonderilecekMetin.Split('\n').Length;
+                int reklamVal = (sponsorlar?.Count ?? 0) * 2;
+                int toplamSanal = Math.Max(satirSayisi + reklamVal, 1);
+                double targetY = 490.0 + ((toplamSanal - 12) * 48.0);
+                string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
+                engine.Send($"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0");
+
+                engine.Play(scene, "KJ$ROLL$IN");
+                _log.Log("Roll", "Roll Tek Metin yayına verildi.", $"Satır: {satirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
+                return CommandResult.Ok("Roll Tek Metin yayına verildi.");
             }
-
-            // 3. DİNAMİK Y EKSENİ
-            int satirSayisi = gonderilecekMetin.Split('\n').Length;
-            int reklamVal = (sponsorlar?.Count ?? 0) * 2;
-            int toplamSanal = Math.Max(satirSayisi + reklamVal, 1);
-            double targetY = 490.0 + ((toplamSanal - 12) * 48.0);
-            string strY = targetY.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
-            engine.Send($"SCENE*{scene}*TREE*$TEXT*ANIMATION*Position*KEY*$roll_text_pos*XYZ SET 0.0 {strY} 0.0");
-
-            // 4. ANİMASYON
-            engine.Play(scene, "KJ$ROLL$IN");
-            _log.Log("Roll", "Roll Tek Metin yayına verildi.", $"Satır: {satirSayisi}, Sponsor: {sponsorlar?.Count ?? 0}");
-            return CommandResult.Ok("Roll Tek Metin yayına verildi.");
+            finally { sem.Release(); }
         }
 
-        // ─── KELEBEK ─────────────────────────────────────────────
+        // ─── KELEBEK ─────────────────────────────────────────────────────
 
         public CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu)
         {
@@ -1013,7 +1062,6 @@ namespace NTR.Application.Services
         {
             var engine = GetEngine(engineType);
             if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
-
             var trCulture = new System.Globalization.CultureInfo("tr-TR");
             string isimBuyuk = (isim ?? "").Trim().ToUpper(trCulture);
             string titleBuyuk = (title ?? "").Trim().ToUpper(trCulture);
@@ -1025,7 +1073,6 @@ namespace NTR.Application.Services
                 engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET ");
                 return CommandResult.Ok($"Kelebek {index}. kişi ekrandan gizlendi.");
             }
-
             engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$isimlik_bg_{index}*ACTIVE SET 1");
             engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$ISIM{index}*GEOM*TEXT SET {isimBuyuk}");
             engine.Send($"-1 RENDERER*BACK_LAYER*TREE*$TITLE{index}*GEOM*TEXT SET {titleBuyuk}");
@@ -1037,8 +1084,7 @@ namespace NTR.Application.Services
         public CommandResult KelebekKapat(VizrtEngineType engineType)
         {
             var engine = GetEngine(engineType);
-            if (!engine.IsConnected)
-                return CommandResult.Fail($"{engineType} bağlı değil.");
+            if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
             engine.Send("RENDERER*BACK_LAYER SET_OBJECT ");
             engine.Send("RENDERER*BACK_LAYER*ACTIVE SET 0");
             _log.Log("Kelebek", "Kelebek kapatıldı.", engineType.ToString());

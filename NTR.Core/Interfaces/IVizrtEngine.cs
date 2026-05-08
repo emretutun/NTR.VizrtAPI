@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using NTR.Core.Entities;
 
 namespace NTR.Core.Interfaces
@@ -18,12 +14,18 @@ namespace NTR.Core.Interfaces
         CommandResult Send(string command);
 
         void Play(string scene, string animName);
+
+        /// <summary>
+        /// Animasyonu oynatır ve motordan ACK bekler.
+        /// ACK gelmezse fallbackDelayMs kadar bekler (fire-and-forget fallback).
+        /// </summary>
+        Task PlayAndWaitAsync(string scene, string animName, int fallbackDelayMs);
+
         void SetObjectText(string scene, string objectName, string text);
         void Visibility(string scene, string objectName, bool state);
         void LoadScene(string scene);
         void StageToStart(string layer);
         void FullCleanup();
-
         VizrtEngine GetStatus();
     }
 }

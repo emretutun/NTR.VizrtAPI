@@ -9,7 +9,7 @@ namespace NTR.RejiClient.Services
 {
     public class AppConfig
     {
-        public string ApiBaseUrl { get; set; } = "https://0dd0-91-199-73-2.ngrok-free.app";
+        public string ApiBaseUrl { get; set; } = "https://localhost:7043";
         public string ApiKey { get; set; } = "ntr-vizrt-2026-secret-key";
         public string EngineType { get; set; } = "Reji";
         public string LastIp { get; set; } = "127.0.0.1";
