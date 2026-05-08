@@ -786,7 +786,7 @@ namespace NTR.Application.Services
         }
 
         // ─── ROZETLER ────────────────────────────────────────────────────
-
+         
         private string GetRozetInAnim(VizrtEngineType engineType, RozetType rozetType)
         {
             string scene = _kjScenePath[engineType];
