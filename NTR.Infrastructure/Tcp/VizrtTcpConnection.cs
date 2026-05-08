@@ -166,8 +166,17 @@ namespace NTR.Infrastructure.Tcp
 
         private void HandleConnectionDrop()
         {
-            Console.WriteLine($"[{ParentName}] Bağlantı koptu.");
+            Console.WriteLine($"[{ParentName}] Bağlantı koptu. 5 saniye sonra yeniden denenecek...");
             CancelAllPending();
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                if (!IsConnected)
+                {
+                    Console.WriteLine($"[{ParentName}] Yeniden bağlanılıyor...");
+                    Connect();
+                }
+            });
         }
 
         private void CancelAllPending()
