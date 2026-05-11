@@ -1,6 +1,7 @@
 ﻿using NTR.RejiClient.Forms;
 using NTR.RejiClient.Models;
 using NTR.RejiClient.Services;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace NTR.RejiClient
 {
@@ -12,6 +13,8 @@ namespace NTR.RejiClient
         private List<Haber> _haberler = new();
         private List<KjItem> _kjListesi = new();
         private bool _isConnected = false;
+
+        private HubConnection _hubConnection;
 
         private readonly Color OnAirColor = Color.Red;
         private readonly Color OffAirColor = Color.LimeGreen;
@@ -26,6 +29,7 @@ namespace NTR.RejiClient
             SetupForm();
             SetupDgvHaberler();
             SetupDgvKjListesi();
+            this.Load += async (s, e) => await InitHubAsync();
         }
 
         // ─── SETUP ────────────────────────────────────────────────
@@ -48,7 +52,62 @@ namespace NTR.RejiClient
             cmbKanal.Items.Add("Show TV");
             cmbKanal.Items.Add("HaberTurk");
             cmbKanal.SelectedIndex = 0;
+
         }
+
+        private async Task InitHubAsync()
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl($"{_config.ApiBaseUrl.TrimEnd('/')}/hubs/vizrt")
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<string, bool, string>("EngineStatusChanged", (name, isConnected, timestamp) =>
+            {
+                this.Invoke(() =>
+                {
+                    string text = isConnected ? $"🟢 {name} Aktif" : $"🔴 {name} Koptu";
+                    Color renk = isConnected ? Color.Green : Color.Red;
+
+                    if (name == "Reji") { lblRejiDurum.Text = text; lblRejiDurum.ForeColor = renk; }
+                    else if (name == "Grafik1") { lblGrafik1Durum.Text = text; lblGrafik1Durum.ForeColor = renk; }
+                    else if (name == "Grafik2") { lblGrafik2Durum.Text = text; lblGrafik2Durum.ForeColor = renk; }
+                });
+            });
+
+            _hubConnection.Reconnecting += _ =>
+            {
+                this.Invoke(() =>
+                {
+                    lblRejiDurum.Text = "🟡 Bağlanıyor..."; lblRejiDurum.ForeColor = Color.Orange;
+                    lblGrafik1Durum.Text = "🟡 Bağlanıyor..."; lblGrafik1Durum.ForeColor = Color.Orange;
+                    lblGrafik2Durum.Text = "🟡 Bağlanıyor..."; lblGrafik2Durum.ForeColor = Color.Orange;
+                });
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Reconnected += _ =>
+            {
+                this.Invoke(() =>
+                {
+                    lblRejiDurum.Text = "🟢 Hub Kuruldu"; lblRejiDurum.ForeColor = Color.Green;
+                    lblGrafik1Durum.Text = "🟢 Hub Kuruldu"; lblGrafik1Durum.ForeColor = Color.Green;
+                    lblGrafik2Durum.Text = "🟢 Hub Kuruldu"; lblGrafik2Durum.ForeColor = Color.Green;
+                });
+                return Task.CompletedTask;
+            };
+
+            try
+            {
+                await _hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Hub hatası: {ex.Message}");
+            }
+        }
+
+
 
         private void SetupDgvHaberler()
         {
@@ -643,6 +702,15 @@ namespace NTR.RejiClient
 
             // Eğer 'kjAcikMi' false ise (hiçbir şey yayında değilse), 
             // if bloğuna girmez ve 0 milisaniye gecikme ile hemen yeni KJ'yi basar.
+        }
+
+        private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            this.FormClosing += async (s, e) =>
+            {
+                if (_hubConnection != null)
+                    await _hubConnection.DisposeAsync();
+            };
         }
     }
 }

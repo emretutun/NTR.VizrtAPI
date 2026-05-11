@@ -19,6 +19,12 @@
                 return;
             }
 
+            if (context.Request.Path.StartsWithSegments("/hubs"))
+            {
+                await _next(context);
+                return;
+            }
+
             // Header'da API key var mı kontrol et
             if (!context.Request.Headers.TryGetValue(API_KEY_HEADER, out var extractedApiKey))
             {

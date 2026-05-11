@@ -52,6 +52,9 @@ namespace NTR.Infrastructure.Tcp
                 _tcpClient.EndConnect(result);
                 _stream = _tcpClient.GetStream();
                 _stream.BeginRead(_buffer, 0, _buffer.Length, ReceiveCallback, _stream);
+
+                _ = Task.Run(() => HeartbeatAsync()); // BURAYA TAŞI
+
                 return true;
             }
             catch (Exception ex)
@@ -184,6 +187,32 @@ namespace NTR.Infrastructure.Tcp
             foreach (var kv in _pendingAcks)
                 kv.Value.TrySetCanceled();
             _pendingAcks.Clear();
+        }
+
+        private async Task HeartbeatAsync()
+        {
+            while (true)
+            {
+                await Task.Delay(3000);
+                if (_tcpClient == null) break;
+
+                try
+                {
+                    // Socket gerçekten açık mı kontrol et
+                    bool ölü = _tcpClient.Client.Poll(1, SelectMode.SelectRead)
+                               && _tcpClient.Client.Available == 0;
+                    if (ölü)
+                    {
+                        HandleConnectionDrop();
+                        break;
+                    }
+                }
+                catch
+                {
+                    HandleConnectionDrop();
+                    break;
+                }
+            }
         }
     }
 }

@@ -63,7 +63,7 @@ namespace NTR.Application.Services
 
             _engines = new Dictionary<VizrtEngineType, VizrtEngineClient>
             {
-                { VizrtEngineType.Reji,    new VizrtEngineClient(1, "viz-KJ") },
+                { VizrtEngineType.Reji,    new VizrtEngineClient(1, "Reji") },
                 { VizrtEngineType.Grafik1, new VizrtEngineClient(2, "viz-Grafik1") },
                 { VizrtEngineType.Grafik2, new VizrtEngineClient(3, "viz-Grafik2") }
             };

@@ -1,12 +1,17 @@
+using NTR.API.Hubs;
 using NTR.API.Middleware;
 using NTR.Application.Extensions;
 using NTR.Core.Entities;
+using NTR.API.BackgroundServices;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<VizrtConnectionMonitor>();
 
 // VizrtSettings'i oku
 var vizrtSettings = builder.Configuration
@@ -29,12 +34,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.MapHub<VizrtHub>("/hubs/vizrt");
 // API Key Middleware
 app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
+
 app.MapControllers();
 
 app.Run();
