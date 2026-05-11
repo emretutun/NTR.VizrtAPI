@@ -36,6 +36,9 @@
             btnAkisYenile = new Button();
             cmbKanal = new ComboBox();
             panel1 = new Panel();
+            lblGrafik2Durum = new Label();
+            lblGrafik1Durum = new Label();
+            lblRejiDurum = new Label();
             btnKelebek = new Button();
             btnRollEkraniAc = new Button();
             splitContainer2 = new SplitContainer();
@@ -83,9 +86,6 @@
             lblSahneTipi = new Label();
             dgvHaberler = new DataGridView();
             splitContainer1 = new SplitContainer();
-            lblRejiDurum = new Label();
-            lblGrafik1Durum = new Label();
-            lblGrafik2Durum = new Label();
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
             splitContainer2.Panel1.SuspendLayout();
@@ -192,6 +192,36 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(1825, 114);
             panel1.TabIndex = 0;
+            // 
+            // lblGrafik2Durum
+            // 
+            lblGrafik2Durum.AutoSize = true;
+            lblGrafik2Durum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
+            lblGrafik2Durum.Location = new Point(481, 47);
+            lblGrafik2Durum.Name = "lblGrafik2Durum";
+            lblGrafik2Durum.Size = new Size(13, 17);
+            lblGrafik2Durum.TabIndex = 11;
+            lblGrafik2Durum.Text = "-";
+            // 
+            // lblGrafik1Durum
+            // 
+            lblGrafik1Durum.AutoSize = true;
+            lblGrafik1Durum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
+            lblGrafik1Durum.Location = new Point(481, 30);
+            lblGrafik1Durum.Name = "lblGrafik1Durum";
+            lblGrafik1Durum.Size = new Size(13, 17);
+            lblGrafik1Durum.TabIndex = 10;
+            lblGrafik1Durum.Text = "-";
+            // 
+            // lblRejiDurum
+            // 
+            lblRejiDurum.AutoSize = true;
+            lblRejiDurum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
+            lblRejiDurum.Location = new Point(481, 13);
+            lblRejiDurum.Name = "lblRejiDurum";
+            lblRejiDurum.Size = new Size(13, 17);
+            lblRejiDurum.TabIndex = 9;
+            lblRejiDurum.Text = "-";
             // 
             // btnKelebek
             // 
@@ -734,36 +764,6 @@
             splitContainer1.Size = new Size(1825, 843);
             splitContainer1.SplitterDistance = 295;
             splitContainer1.TabIndex = 1;
-            // 
-            // lblRejiDurum
-            // 
-            lblRejiDurum.AutoSize = true;
-            lblRejiDurum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
-            lblRejiDurum.Location = new Point(481, 13);
-            lblRejiDurum.Name = "lblRejiDurum";
-            lblRejiDurum.Size = new Size(45, 17);
-            lblRejiDurum.TabIndex = 9;
-            lblRejiDurum.Text = "label2";
-            // 
-            // lblGrafik1Durum
-            // 
-            lblGrafik1Durum.AutoSize = true;
-            lblGrafik1Durum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
-            lblGrafik1Durum.Location = new Point(481, 30);
-            lblGrafik1Durum.Name = "lblGrafik1Durum";
-            lblGrafik1Durum.Size = new Size(45, 17);
-            lblGrafik1Durum.TabIndex = 10;
-            lblGrafik1Durum.Text = "label3";
-            // 
-            // lblGrafik2Durum
-            // 
-            lblGrafik2Durum.AutoSize = true;
-            lblGrafik2Durum.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold);
-            lblGrafik2Durum.Location = new Point(481, 47);
-            lblGrafik2Durum.Name = "lblGrafik2Durum";
-            lblGrafik2Durum.Size = new Size(45, 17);
-            lblGrafik2Durum.TabIndex = 11;
-            lblGrafik2Durum.Text = "label4";
             // 
             // MainForm
             // 
