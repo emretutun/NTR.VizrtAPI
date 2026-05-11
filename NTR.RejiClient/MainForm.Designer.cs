@@ -86,6 +86,7 @@
             lblSahneTipi = new Label();
             dgvHaberler = new DataGridView();
             splitContainer1 = new SplitContainer();
+            btnAl = new Button();
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
             splitContainer2.Panel1.SuspendLayout();
@@ -279,6 +280,7 @@
             // 
             // groupBox2
             // 
+            groupBox2.Controls.Add(btnAl);
             groupBox2.Controls.Add(btnTumunuAl);
             groupBox2.Controls.Add(tabControl1);
             groupBox2.Dock = DockStyle.Fill;
@@ -290,13 +292,14 @@
             // 
             // btnTumunuAl
             // 
+            btnTumunuAl.BackColor = Color.Red;
             btnTumunuAl.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnTumunuAl.Location = new Point(202, 258);
+            btnTumunuAl.Location = new Point(6, 254);
             btnTumunuAl.Name = "btnTumunuAl";
             btnTumunuAl.Size = new Size(131, 51);
             btnTumunuAl.TabIndex = 1;
-            btnTumunuAl.Text = "TÜMÜNÜ AL (F8)";
-            btnTumunuAl.UseVisualStyleBackColor = true;
+            btnTumunuAl.Text = "TÜMÜNÜ AL ACİL(F8)";
+            btnTumunuAl.UseVisualStyleBackColor = false;
             btnTumunuAl.Click += btnTumunuAl_Click;
             // 
             // tabControl1
@@ -765,6 +768,17 @@
             splitContainer1.SplitterDistance = 295;
             splitContainer1.TabIndex = 1;
             // 
+            // btnAl
+            // 
+            btnAl.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnAl.Location = new Point(279, 258);
+            btnAl.Name = "btnAl";
+            btnAl.Size = new Size(131, 51);
+            btnAl.TabIndex = 2;
+            btnAl.Text = "TÜMÜNÜ AL";
+            btnAl.UseVisualStyleBackColor = true;
+            btnAl.Click += btnAl_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -862,5 +876,6 @@
         private Label lblGrafik2Durum;
         private Label lblGrafik1Durum;
         private Label lblRejiDurum;
+        private Button btnAl;
     }
 }

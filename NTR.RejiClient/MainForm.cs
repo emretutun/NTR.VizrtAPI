@@ -712,5 +712,91 @@ namespace NTR.RejiClient
                     await _hubConnection.DisposeAsync();
             };
         }
+        private async void btnAl_Click(object sender, EventArgs e)
+        {
+            if (!_isConnected) return;
+
+            // Çıkış animasyonları oynarken operatörün arka arkaya komut göndermesini engelle
+            SetButonlar(false);
+            btnAl.Enabled = false;
+
+            try
+            {
+                // 1. ANA KJ KONTROLÜ (Tekli, Çiftli veya Uzun KJ yayındaysa)
+                if (btnTekliKJ.BackColor == OnAirColor || btnCiftliKJ.BackColor == OnAirColor || btnUzunKJ.BackColor == OnAirColor)
+                {
+                    await _api.KjAlAsync(_engineType);
+                    btnTekliKJ.BackColor = OffAirColor;
+                    btnCiftliKJ.BackColor = OffAirColor;
+                    btnUzunKJ.BackColor = OffAirColor;
+                    btnKJAl.BackColor = SystemColors.Control;
+                }
+
+                // 2. YER KJ KONTROLÜ
+                if (btnYerVer.BackColor == OnAirColor)
+                {
+                    await _api.YerAlAsync(_engineType);
+                    btnYerVer.BackColor = OffAirColor;
+                    btnYerVer.ForeColor = Color.Black;
+                    btnYerAl.BackColor = AlColor;
+                }
+
+                // 3. SOSYAL MEDYA KONTROLÜ
+                if (btnSosyalMedyaVer.BackColor == OnAirColor)
+                {
+                    await _api.SosyalMedyaAlAsync(_engineType);
+                    btnSosyalMedyaVer.BackColor = OffAirColor;
+                    btnSosyalMedyaAl.BackColor = AlColor;
+                }
+
+                // 4. WHATSAPP KONTROLÜ
+                if (btnWhatsappVer.BackColor == OnAirColor)
+                {
+                    await _api.WhatsappAlAsync(_engineType);
+                    btnWhatsappVer.BackColor = OffAirColor;
+                    btnWhatsappAl.BackColor = AlColor;
+                }
+
+                // 5. İSİMLİK (TELEFON/NORMAL) KONTROLÜ
+                if (btnIsimlikVer.BackColor == OnAirColor)
+                {
+                    await _api.TelefonIsimlikAlAsync(_engineType);
+                    btnIsimlikVer.BackColor = OffAirColor;
+                    btnIsimlikAl.BackColor = AlColor;
+                }
+
+                // 6. SUNUCU İSİMLİK KONTROLÜ
+                if (btnSunucuIsimlikVer.BackColor == OnAirColor)
+                {
+                    await _api.IsimlikAlAsync(_engineType);
+                    btnSunucuIsimlikVer.BackColor = OffAirColor;
+                    btnSunucuIsimlikAl.BackColor = AlColor;
+                }
+
+                // 7. MUHABİR/KAMERA KONTROLÜ
+                if (btnMuhabirKameramanVer.BackColor == OnAirColor)
+                {
+                    await _api.MuhabirKameraAlAsync(_engineType);
+                    btnMuhabirKameramanVer.BackColor = OffAirColor;
+                    btnMuhabirKameramanVer.ForeColor = Color.Black;
+                    btnMuhabirKameramanVer.Text = "MUHABİR KAMERAMAN VER";
+                    btnMuhabirKameramanAl.BackColor = AlColor;
+                }
+
+                // Liste (DataGridView) üzerindeki kırmızı "yayında" boyamalarını temizle
+                for (int i = 0; i < dgvKjListesi.Rows.Count; i++)
+                {
+                    BoySatirTemizle(i);
+                }
+
+                dgvKjListesi.ClearSelection();
+            }
+            finally
+            {
+                // Animasyonlar bittikten ve API komutları iletildikten sonra UI'ı tekrar aç
+                SetButonlar(true);
+                btnAl.Enabled = true;
+            }
+        }
     }
 }
