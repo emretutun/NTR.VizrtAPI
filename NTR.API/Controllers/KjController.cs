@@ -222,5 +222,106 @@ namespace NTR.API.Controllers
             var result = _vizrtService.KelebekKapat(engineType);
             return result.Success ? Ok(result) : BadRequest(result);
         }
+
+        [HttpPost("{engineType}/oyuncu-degisiklik/ver")]
+        public IActionResult SendOyuncuDegisiklik(VizrtEngineType engineType, [FromBody] OyuncuDegisiklikDto dto)
+        {
+            // DTO'yu burada açıp servise saf string olarak gönderiyoruz (Clean Architecture'a uygun)
+            var result = _vizrtService.SendOyuncuDegisiklik(engineType, dto.GirenOyuncu, dto.CikanOyuncu, dto.TakimLogo);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/oyuncu-degisiklik/al")]
+        public IActionResult TakeOyuncuDegisiklik(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.TakeOyuncuDegisiklik(engineType);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/kart-bilgi/ver")]
+        public IActionResult SendKartBilgi(VizrtEngineType engineType, [FromBody] KartBilgiDto dto)
+        {
+            var result = _vizrtService.SendKartBilgi(engineType, dto.Isim, dto.TakimLogo, dto.KartTipi);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/kart-bilgi/al")]
+        public IActionResult TakeKartBilgi(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.TakeKartBilgi(engineType);
+            return Ok(result);
+        }
+        [HttpPost("{engineType}/istatistik/ver")]
+        public IActionResult SendIstatistik(VizrtEngineType engineType, [FromBody] IstatistikDto dto)
+        {
+            // Clean architecture'a uygun şekilde DTO'yu Controller'da açıp Service'e paslıyoruz
+            var result = _vizrtService.SendIstatistik(engineType, dto.EvDeger, dto.DepDeger, dto.Baslik, dto.EvLogo, dto.DepLogo);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/istatistik/al")]
+        public IActionResult TakeIstatistik(VizrtEngineType engineType)
+        {
+            var result = _vizrtService.TakeIstatistik(engineType);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/sag-ust-skor/ver")]
+        public async Task<IActionResult> SendSagUstSkor(VizrtEngineType engineType, [FromBody] SagUstSkorRequestDto dto)
+        {
+            var result = await _vizrtService.SendSagUstSkorAsync(
+                engineType,
+                dto.EvTakimIsim,
+                dto.DepTakimIsim,
+                dto.EvSkor,
+                dto.DepSkor
+            );
+
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/sag-ust-skor/al")]
+        public async Task<IActionResult> TakeSagUstSkor(VizrtEngineType engineType)
+        {
+            var result = await _vizrtService.TakeSagUstSkorAsync(engineType);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/uzatma/ver")]
+        public async Task<IActionResult> SendUzatma(VizrtEngineType engineType, [FromBody] UzatmaRequestDto dto)
+        {
+            var result = await _vizrtService.SendUzatmaAsync(engineType, dto.Sure);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/uzatma/al")]
+        public async Task<IActionResult> TakeUzatma(VizrtEngineType engineType)
+        {
+            var result = await _vizrtService.TakeUzatmaAsync(engineType);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/gol-bilgisi/ver")]
+        public async Task<IActionResult> SendGolBilgisi(VizrtEngineType engineType, [FromBody] GolBilgisiRequestDto dto)
+        {
+            var result = await _vizrtService.SendGolBilgisiAsync(engineType, dto.OyuncuIsim, dto.Dakika, dto.TakimLogo);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{engineType}/gol-bilgisi/al")]
+        public async Task<IActionResult> TakeGolBilgisi(VizrtEngineType engineType)
+        {
+            var result = await _vizrtService.TakeGolBilgisiAsync(engineType);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+  
+
     }
 }

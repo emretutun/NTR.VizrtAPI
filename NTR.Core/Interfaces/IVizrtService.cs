@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NTR.Core.Entities;
 using NTR.Core.Enums;
+ 
 
 namespace NTR.Core.Interfaces
 {
@@ -71,5 +72,24 @@ namespace NTR.Core.Interfaces
         CommandResult KelebekSahneYukle(VizrtEngineType engineType, string sahneYolu);
         CommandResult KelebekIsimGonder(VizrtEngineType engineType, int index, string isim, string title);
         CommandResult KelebekKapat(VizrtEngineType engineType);
+
+        CommandResult SendOyuncuDegisiklik(VizrtEngineType engineType, string girenOyuncu, string cikanOyuncu, string takimLogo);
+        CommandResult TakeOyuncuDegisiklik(VizrtEngineType engineType);
+
+        CommandResult SendKartBilgi(VizrtEngineType engineType, string isim, string takimLogo, int kartTipi);
+        CommandResult TakeKartBilgi(VizrtEngineType engineType);
+
+        CommandResult SendIstatistik(VizrtEngineType engineType, string evDeger, string depDeger, string baslik, string evLogo, string depLogo);
+        CommandResult TakeIstatistik(VizrtEngineType engineType);
+
+        Task<CommandResult> SendSagUstSkorAsync(VizrtEngineType engineType, string evTakim, string depTakim, string evSkor, string depSkor);
+        Task<CommandResult> TakeSagUstSkorAsync(VizrtEngineType engineType);
+
+        Task<CommandResult> SendUzatmaAsync(VizrtEngineType engineType, string sure);
+        Task<CommandResult> TakeUzatmaAsync(VizrtEngineType engineType);
+        Task<CommandResult> SendGolBilgisiAsync(VizrtEngineType engineType, string oyuncuIsim, string dakika, string takimLogo);
+        Task<CommandResult> TakeGolBilgisiAsync(VizrtEngineType engineType);
+
+
     }
 }

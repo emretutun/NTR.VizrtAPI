@@ -1090,5 +1090,262 @@ namespace NTR.Application.Services
             _log.Log("Kelebek", "Kelebek kapatıldı.", engineType.ToString());
             return CommandResult.Ok("Kelebek kapatıldı.");
         }
+
+
+        public CommandResult SendOyuncuDegisiklik(VizrtEngineType engineType, string girenOyuncu, string cikanOyuncu, string takimLogo)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            string logoYolu = @"D:\MATERIALS_HTS\SPOR_OTOMASYON_LOGOLAR\SUPERLIG\" + takimLogo; // Süper Lig takımlarının logolarının bulunduğu klasör yolu
+
+            // 2. Verileri gönderirken IMAGE SET komutunun değerini çift tırnak içine alıyoruz
+            engine.Send($"0 RENDERER*TREE*$oyuncu_degisiklik_giren_isim*GEOM*TEXT SET {girenOyuncu}");
+            engine.Send($"0 RENDERER*TREE*$oyuncu_degisiklik_cikan_isim*GEOM*TEXT SET {cikanOyuncu}");
+            engine.Send($"0 RENDERER*TREE*$oyuncu_degisiklik_takim_logo*TEXTURE*IMAGE SET \"{logoYolu}\"");
+
+            // 3. IN Animasyonunu Başlat
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*OYUNCU_DEGISIKLIK_IN START");
+
+            return new CommandResult { Success = true, Message = "Oyuncu değişikliği yayına verildi." };
+        }
+
+        public CommandResult TakeOyuncuDegisiklik(VizrtEngineType engineType)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*OYUNCU_DEGISIKLIK_OUT START");
+
+            return new CommandResult { Success = true, Message = "Oyuncu değişikliği ekrandan alındı." };
+        }
+
+        public CommandResult SendKartBilgi(VizrtEngineType engineType, string isim, string takimLogo, int kartTipi)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            string logoYolu = @"D:\MATERIALS_HTS\SPOR_OTOMASYON_LOGOLAR\SUPERLIG\" + takimLogo;
+
+            // --- YENİ EKLENEN KISIM: Kart tipine göre başlık yazısını otomatik belirle ---
+            string baslikYazisi = "SARI KART"; // Varsayılan
+            if (kartTipi == 2) baslikYazisi = "DİREKT KIRMIZI KART";
+            else if (kartTipi == 3) baslikYazisi = "KIRMIZI KART"; // İstersen burayı "2. SARI KART" vs. yapabilirsin
+
+            // 1. İsim, Başlık ve Logo Set Etme
+            engine.Send($"0 RENDERER*TREE*$kart_bilgi_isim*GEOM*TEXT SET {isim}");
+            engine.Send($"0 RENDERER*TREE*$kart_bilgi_baslik*GEOM*TEXT SET {baslikYazisi}"); // YENİ SATIR
+            engine.Send($"0 RENDERER*TREE*$kart_bilgi_takim_logo*TEXTURE*IMAGE SET \"{logoYolu}\"");
+
+            // 2. Kart İkonu Gözlerini Aç/Kapat
+            engine.Send($"0 RENDERER*TREE*$sari_kart*ACTIVE SET {(kartTipi == 1 ? "1" : "0")}");
+            engine.Send($"0 RENDERER*TREE*$kirmizi_kart*ACTIVE SET {(kartTipi == 2 ? "1" : "0")}");
+            engine.Send($"0 RENDERER*TREE*$cift_saridan_kirmizi_kart*ACTIVE SET {(kartTipi == 3 ? "1" : "0")}");
+
+            // 3. IN Animasyonunu Başlat
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*KART_BILGI_IN START");
+
+            return new CommandResult { Success = true, Message = "Kart bilgisi yayına verildi." };
+        }
+
+        public CommandResult TakeKartBilgi(VizrtEngineType engineType)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            // OUT Animasyonunu Başlat
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*KART_BILGI_OUT START");
+
+            return new CommandResult { Success = true, Message = "Kart bilgisi ekrandan alındı." };
+        }
+
+        public CommandResult SendIstatistik(VizrtEngineType engineType, string evDeger, string depDeger, string baslik, string evLogo, string depLogo)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            // Logo yolları
+            string basePath = @"D:\MATERIALS_HTS\SPOR_OTOMASYON_LOGOLAR\SUPERLIG\";
+            string evLogoYolu = basePath + evLogo;
+            string depLogoYolu = basePath + depLogo;
+
+            // 1. Text Değerlerini Set Etme
+            engine.Send($"0 RENDERER*TREE*$istatistik_ev*GEOM*TEXT SET {evDeger}");
+            engine.Send($"0 RENDERER*TREE*$istatistik_dep*GEOM*TEXT SET {depDeger}");
+            engine.Send($"0 RENDERER*TREE*$istatistik_baslik*GEOM*TEXT SET {baslik}");
+
+            // 2. Logoları Set Etme
+            engine.Send($"0 RENDERER*TREE*$istatistik_takim_ev_logo*TEXTURE*IMAGE SET \"{evLogoYolu}\"");
+            engine.Send($"0 RENDERER*TREE*$istatistik_takim_dep_logo*TEXTURE*IMAGE SET \"{depLogoYolu}\"");
+
+            // 3. IN Animasyonunu Başlat
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*ISTATISTIK_IN START");
+
+            return new CommandResult { Success = true, Message = "İstatistik yayına verildi." };
+        }
+
+        public CommandResult TakeIstatistik(VizrtEngineType engineType)
+        {
+            if (!_engines.TryGetValue(engineType, out var engine) || !engine.IsConnected)
+            {
+                return new CommandResult { Success = false, Message = "Engine bağlı değil." };
+            }
+
+            // OUT Animasyonunu Başlat
+            engine.Send("0 RENDERER*STAGE*DIRECTOR*ISTATISTIK_OUT START");
+
+            return new CommandResult { Success = true, Message = "İstatistik ekrandan alındı." };
+        }
+
+        // ─── CANLI MAÇ SKORBOARD ───────────────────────────────────────────────
+
+        public async Task<CommandResult> SendSagUstSkorAsync(VizrtEngineType engineType, string evTakim, string depTakim, string evSkor, string depSkor)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync(); // Çakışmaları önlemek için kilitliyoruz
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+                if (string.IsNullOrEmpty(scene)) return CommandResult.Fail("Sahne yüklü değil. Lütfen önce Canlı Maç sahnesini yükleyin.");
+
+                // Resimdeki tree yapısı ve eski koddaki container'lar:
+                engine.SetObjectText(scene, "ust_takim_ev_isim", evTakim);
+                engine.SetObjectText(scene, "ust_takim_dep_isim", depTakim);
+                engine.SetObjectText(scene, "skor_ev", evSkor);
+                engine.SetObjectText(scene, "skor_dep", depSkor);
+
+                // Eski koddaki IN animasyonunu tetikliyoruz
+                engine.Play(scene, "SKOR_IN");
+
+                _log.Log("Skorboard", "Sağ üst skor yayına verildi.", $"{engineType} | {evTakim} {evSkor}-{depSkor} {depTakim}");
+                return CommandResult.Ok("Sağ üst skor yayına verildi.");
+            }
+            finally { sem.Release(); }
+        }
+
+        public async Task<CommandResult> TakeSagUstSkorAsync(VizrtEngineType engineType)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+
+                // Eski koddaki OUT animasyonunu tetikliyoruz
+                engine.Play(scene, "SKOR_OUT");
+
+                _log.Log("Skorboard", "Sağ üst skor yayından alındı.", engineType.ToString());
+                return CommandResult.Ok("Sağ üst skor yayından alındı.");
+            }
+            finally { sem.Release(); }
+        }
+
+
+        // ─── CANLI MAÇ UZATMA VE GOL GRAFİKLERİ ─────────────────────────────────
+
+        public async Task<CommandResult> SendUzatmaAsync(VizrtEngineType engineType, string sure)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+                if (string.IsNullOrEmpty(scene)) return CommandResult.Fail("Sahne yüklü değil.");
+
+                // Tabelaya "+5" formatında yazıyı basıyoruz
+                engine.SetObjectText(scene, "uzatma_info", "+" + sure);
+                engine.Play(scene, "UZATMA_INFO_IN");
+
+                _log.Log("Spor-Uzatma", $"Uzatma tabelası yayına verildi: +{sure}", engineType.ToString());
+                return CommandResult.Ok($"Uzatma tabelası (+{sure}) yayına verildi.");
+            }
+            finally { sem.Release(); }
+        }
+
+        public async Task<CommandResult> TakeUzatmaAsync(VizrtEngineType engineType)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+                engine.Play(scene, "UZATMA_INFO_OUT");
+
+                return CommandResult.Ok("Uzatma tabelası yayından alındı.");
+            }
+            finally { sem.Release(); }
+        }
+
+        public async Task<CommandResult> SendGolBilgisiAsync(VizrtEngineType engineType, string oyuncuIsim, string dakika, string takimLogo)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+                if (string.IsNullOrEmpty(scene)) return CommandResult.Fail("Sahne yüklü değil.");
+
+                string logoYolu = @"D:\MATERIALS_HTS\SPOR_OTOMASYON_LOGOLAR\SUPERLIG\" + takimLogo;
+
+                // Eski kodundaki container yapılarıyla veri set etme
+                engine.SetObjectText(scene, "alt_gol_isim", oyuncuIsim.ToUpper(new System.Globalization.CultureInfo("tr-TR")));
+                engine.SetObjectText(scene, "alt_gol_dakika", $"GOL {dakika}'");
+                engine.Send($"SCENE*{scene}*TREE*$alt_gol_takim_logo*TEXTURE*IMAGE SET \"{logoYolu}\"");
+
+                // Animasyonu başlat
+                engine.Play(scene, "GOL_BILGI_IN");
+
+                _log.Log("Spor-Gol", $"Gol bilgisi yayına verildi: {oyuncuIsim} ({dakika}')", engineType.ToString());
+                return CommandResult.Ok("Gol bilgisi yayına verildi.");
+            }
+            finally { sem.Release(); }
+        }
+
+        public async Task<CommandResult> TakeGolBilgisiAsync(VizrtEngineType engineType)
+        {
+            var sem = _locks[engineType];
+            await sem.WaitAsync();
+            try
+            {
+                var engine = GetEngine(engineType);
+                if (!engine.IsConnected) return CommandResult.Fail($"{engineType} bağlı değil.");
+
+                string scene = _kjScenePath[engineType];
+                engine.Play(scene, "GOL_BILGI_OUT");
+
+                return CommandResult.Ok("Gol bilgisi yayından alındı.");
+            }
+            finally { sem.Release(); }
+        }
+
+
+        
+
+
     }
 }
